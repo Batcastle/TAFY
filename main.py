@@ -47,48 +47,105 @@ Features:
 
 TAFY and associated hardware files are 100% open-source and free to use!
 """
-import json
 from machine import Pin, PWM
-from time import sleep_ms
+import time
+import json
 
-BUZZER_PIN = 15
 
-# -------------
-# JSON loaders
-# -------------
-
-def load_json(filename, default):
+def load_config():
     try:
-        with open(filename) as f:
-            return json.load(f)
+        with open("config.json", "r") as file:
+            output = json.load(file)
     except:
-        return default
-
-config = load_json("config.json", {
+        output = {
+    "frequency": 2,
+    "buzzer_pin": 25,
     "startup_sound": True,
-    "startup_tune": "nerf_arming_v1",
     "volume": 0.5
-})
+}
+    return output
 
-tunes = load_json("tunes.json", {
-    "startup": {},
-    "status": {}
-})
 
-# -------------
-# Core playback
-# -------------
+def load_tunes():
+    try:
+        with open("tunes.json", "r") as file:
+            output = json.load(file)
+    except:
+        output = {
+  "startup": {
+    "nerf_arming_v1": {
+      "tempo": 1.0,
+      "notes": [
+        [1047, 80],
+        [1397, 80],
+        [2093, 60],
+        [0,    40],
+        [1568, 120]
+      ]
+    }
+  },
+  "status": {
+    "low_battery": {
+      "tempo": 1.0,
+      "notes": [
+        [988,  150],
+        [784,  200],
+        [523,  300]
+      ]
+    },
+    "battery_charged": {
+      "tempo": 1.0,
+      "notes": [
+        [784,  120],
+        [988,  120],
+        [1319, 160]
+      ]
+    },
+    "safety_on": {
+      "tempo": 1.0,
+      "notes": [
+        [784,  60],
+        [523,  100]
+      ]
+    },
+    "safety_off": {
+      "tempo": 1.0,
+      "notes": [
+        [523,  60],
+        [784,  100]
+      ]
+    },
+    "mode_changed": {
+      "tempo": 1.0,
+      "notes": [
+        [1319, 60],
+        [1568, 80]
+      ]
+    }
+  }
+}
+    return output
 
-def _play_tune_dict(tune_dict, volume):
-    """Play a tune dict of form { 'tempo': float, 'notes': [[freq, dur_ms], ...] }."""
-    if not tune_dict:
-        return
 
-    notes = tune_dict.get("notes", [])
-    tempo = tune_dict.get("tempo", 1.0)
+def play_tune(event, config, tunes):
+    if event.lower() == "startup":
+        try:
+            tune = tunes[event][config["startup_sound"]]
+        except:
+            # No tune found with that name
+            return
+    else:
+        try:
+            tune = tunes["status"][event]
+        except:
+            return
 
-    buzzer = PWM(Pin(BUZZER_PIN))
-    duty = int(65535 * max(0.0, min(1.0, volume)))  # clamp 0..1
+    notes = tune["notes"]
+    tempo = tune["tempo"]
+
+    buzzer = PWM(Pin(config["buzzer_pin"]))
+    # Scale volume (0.0–1.0) into duty_u16 (0–65535)
+    duty = int(65535 * max(0.0, min(1.0, config["volume"])))
 
     for freq, dur_ms in notes:
         dur = int(dur_ms * tempo)
@@ -99,45 +156,30 @@ def _play_tune_dict(tune_dict, volume):
             buzzer.freq(int(freq))
             buzzer.duty_u16(duty)
 
-        sleep_ms(dur)
+        time.sleep_ms(dur)
 
     buzzer.duty_u16(0)
     buzzer.deinit()
 
-def play_tune(name, category="startup", volume=None):
-    """Play tune by name and category: 'startup' or 'status'."""
-    cat = tunes.get(category, {})
-    tune = cat.get(name)
-    if not tune:
-        return  # silently ignore unknown
 
-    if volume is None:
-        volume = config.get("volume", 0.5)
-
-    _play_tune_dict(tune, volume)
-
-# -------------
-# Convenience wrappers
-# -------------
-
-def play_startup_tune():
-    if not config.get("startup_sound", True):
-        return
-    name = config.get("startup_tune", "nerf_arming_v1")
-    play_tune(name, category="startup")
-
-def play_status_sound(name, volume=None):
-    play_tune(name, category="status", volume=volume)
-
-
-
-
-
-def main() -> None:
+def main():
     """Main TAFY Loop"""
     # Call this early from your main boot sequence
-    startup_sound()
+    led = Pin("LED", Pin.OUT)
+    config = load_config()
+    tunes = load_tunes()
+    play_tune("startup", config, tunes)
+    # Blink LED to show we are online
 
+    flop = False
+    while True:
+        if flop:
+            led.value(0)
+            flop = False
+        else:
+            led.value(1)
+            flop = True
+        time.sleep(config["frequency"])
 
 
 
