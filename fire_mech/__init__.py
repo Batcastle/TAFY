@@ -20,21 +20,21 @@
 #  MA 02110-1301, USA.
 #
 #
-"""UI for Edamame"""
+"""fire mechanism driver loader for TAFY"""
 import os
-import importlib
+# import importlib
 
 
-def load(fire_type: str):
+def load(fire: str):
     """Load the specified UI type"""
-    fire = fire_type.upper()
-    if os.path.exists(f"fire_mech/{fire}_fire"):
-        return importlib.import_module(f"fire_mech.{fire}_fire")
+    if f"{fire}_fire.py" in os.listdir("fire_mech"):
+        print(f"Loading Module: {fire}")
+        return __import__(f"fire_mech/{fire}_fire")
     raise ImportError(f"Module {fire}_fire is not present!")
 
 
 def available() -> list:
     """List available GUIs/toolkits"""
     options = os.listdir("fire_mech")
-    output = [each.split("_")[0] for each in uis if "_fire" == each[-3:]]
+    output = [each.split("_")[0] for each in options if "_fire" == each[-8:-3]]
     return output

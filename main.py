@@ -50,9 +50,15 @@ TAFY and associated hardware files are 100% open-source and free to use!
 from machine import Pin, PWM
 import time
 import json
+import fire_mech as fm
+import display
+
+# Global variables
+VERSION = "v0.0.1-alpha0"
 
 
 def load_config():
+    """Load Global config. If an error occurs, return a hard-coded default"""
     try:
         with open("config.json", "r") as file:
             output = json.load(file)
@@ -67,6 +73,7 @@ def load_config():
 
 
 def load_tunes():
+    """Load Tune config. If an error occurs, return a hard-coded default"""
     try:
         with open("tunes.json", "r") as file:
             output = json.load(file)
@@ -127,6 +134,90 @@ def load_tunes():
     return output
 
 
+def load_SmartBus_config():
+    """Load SmartBus conbfig and Manifest. If an error occurs, return a hard-coded default"""
+    try:
+        with open("SmartBus_Manifest.json", "r") as file:
+            output = json.load(file)
+    except:
+        output = {
+  "smartbus": {
+    "devices": [
+      {
+        "name": "smartspine_v1",
+        "role": "mag_spine",
+        "rid_bucket_ohms": 47000,
+        "i2c_addresses": [48],
+
+        "provides": ["ammo_level", "mag_id"],
+        "consumes": ["fire_mode", "blaster_state"],
+
+        "routes": {
+          "to_firing_system": ["ammo_level"],
+          "to_display": ["ammo_level", "mag_id"],
+          "to_device": []
+        }
+      },
+
+      {
+        "name": "smartmag_v1",
+        "role": "mag",
+        "rid_bucket_ohms": 22000,
+        "i2c_addresses": [49],
+
+        "provides": ["ammo_level", "mag_id"],
+        "consumes": ["fire_mode", "blaster_state"],
+
+        "routes": {
+          "to_firing_system": ["ammo_level"],
+          "to_display": ["ammo_level", "mag_id"],
+          "to_device": []
+        }
+      },
+
+      {
+        "name": "barrel_chrono_v1",
+        "role": "barrel",
+        "rid_bucket_ohms": 33000,
+        "i2c_addresses": [80],
+
+        "provides": ["muzzle_velocity"],
+        "consumes": ["fire_mode", "blaster_state"],
+
+        "routes": {
+          "to_firing_system": [],
+          "to_display": ["muzzle_velocity"],
+          "to_device": ["blaster_state"]
+        }
+      },
+
+      {
+        "name": "power_only",
+        "role": "power_only",
+        "rid_bucket_ohms": 4700,
+        "i2c_addresses": [],
+
+        "provides": [],
+        "consumes": [],
+
+        "routes": {
+          "to_firing_system": [],
+          "to_display": [],
+          "to_device": []
+        }
+      }
+    ],
+
+    "defaults": {
+      "mag_role_priority": ["mag", "mag_spine"],
+      "max_devices": 4
+    }
+  }
+}
+
+    return output
+
+
 def play_tune(event, config, tunes):
     if event.lower() == "startup":
         try:
@@ -162,24 +253,74 @@ def play_tune(event, config, tunes):
     buzzer.deinit()
 
 
+def init(config):
+    """Initialize Libraries and Hardware"""
+    output_fm = None
+    output_display = None
+    if config["blaster_type"] in fm.available():
+        output_fm = fm.load(config["blaster_type"])
+    if config["display_type"] in display.available():
+        output_display = display.load(config["display_type"])
+
+    # Here, we should now run any hardware initialization code we need to.
+    if output_display is not None:
+        output_display.init(config)
+
+    if output_fm is not None:
+        output_fm.init(config)
+
+    return (output_fm, output_display)
+
+
+def blink(sleep, led):
+  """Blink built-in LED"""
+  flop = False
+  while True:
+    if flop:
+      led.value(0)
+      flop = False
+    else:
+      led.value(1)
+      flop = True
+    time.sleep(sleep)
+
+
 def main():
     """Main TAFY Loop"""
     # Call this early from your main boot sequence
     led = Pin("LED", Pin.OUT)
-    config = load_config()
-    tunes = load_tunes()
+    try:
+        config = load_config()
+        tunes = load_tunes()
+        SmartBus_config = load_SmartBus_config()
+        mech, disp = init(config)
+    except Exception as error:
+        # Fatal Error. Set the onboard LED to always on to show the error.
+        print(f"FATAL ERROR: {error}")
+        led.value(1)
+        return
+
+    if disp is None:
+        print(f"No known working driver for display of type: {config['display_type']}")
+        blink(5, led)
+        return
+    else:
+        print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
+
+
+    if mech is None:
+        print(f"No known working driver for firing mechanisims of type: {config['blaster_type']}")
+        blink(3, led)
+        return
+    else:
+        print(f"Loaded driver for firing mechanism of type: {mech.TYPE}")
+
+
+
+    print(f"Welcome to TAFY! Version: {VERSION}")
     play_tune("startup", config, tunes)
     # Blink LED to show we are online
-
-    flop = False
-    while True:
-        if flop:
-            led.value(0)
-            flop = False
-        else:
-            led.value(1)
-            flop = True
-        time.sleep(config["frequency"])
+    blink(config["frequency"], led)
 
 
 

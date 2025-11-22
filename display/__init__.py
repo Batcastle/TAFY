@@ -20,21 +20,21 @@
 #  MA 02110-1301, USA.
 #
 #
-"""UI for Edamame"""
+"""display driver loader for TAFY"""
 import os
-import importlib
+# import importlib
 
 
-def load(display_type: str):
+def load(display: str):
     """Load the specified UI type"""
-    display = display_type.upper()
-    if os.path.exists(f"display/{display}_display"):
-        return importlib.import_module(f"display.{display}_display")
+    if f"{display}_display.py" in os.listdir("display"):
+        print(f"Loading Module: {display}")
+        return __import__(f"display/{display}_display")
     raise ImportError(f"Module {display}_display is not present!")
 
 
 def available() -> list:
     """List available GUIs/toolkits"""
     options = os.listdir("display")
-    output = [each.split("_")[0] for each in uis if "_display" == each[-3:]]
+    output = [each.split("_")[0] for each in options if "_display" == each[-11:-3]]
     return output
