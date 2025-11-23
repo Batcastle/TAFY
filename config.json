@@ -3,12 +3,16 @@
     "buzzer_pin": 25,
     "startup_sound": true,
     "volume": 0.5,
-    "blaster_type": "aeb",
+    "blaster_type": "flywheel_mechanical",
     "display_type": "dummy",
     "aeb_steps_per_cycle": 800,
     "aeb_step_freq_hz": 800,
-    "flywheel_pwm_pin": 6,
-    "flywheel_rev_pin": 7,
+    "flywheel_pwm_pin": 1,
+    "flywheel_rev_pin": 28,
+    "flywheel_rev_pin_normal": 0,
+    "flywheel_pwm_freq": 1000,
+    "flywheel_pwm_duty": 1.0,
     "dart_capacity": 30,
-    "SmartBus_enabled": true
+    "SmartBus_enabled": true,
+    "internal_light": true
 }

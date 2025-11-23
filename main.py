@@ -297,13 +297,11 @@ def main():
     except Exception as error:
         # Fatal Error. Set the onboard LED to always on to show the error.
         print(f"FATAL ERROR: {error}")
-        led.value(1)
-        return
+        blink(0.5, led)
 
     if disp is None:
         print(f"No known working driver for display of type: {config['display_type']}")
         blink(5, led)
-        return
     else:
         print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
 
@@ -311,16 +309,36 @@ def main():
     if mech is None:
         print(f"No known working driver for firing mechanisims of type: {config['blaster_type']}")
         blink(3, led)
-        return
     else:
-        print(f"Loaded driver for firing mechanism of type: {mech.TYPE}")
+        print(f"Loaded driver for firing mechanism of type: {mech.FIRE_TYPE}")
 
 
 
     print(f"Welcome to TAFY! Version: {VERSION}")
     play_tune("startup", config, tunes)
-    # Blink LED to show we are online
-    blink(config["frequency"], led)
+    # Set LED to on to show we are online
+    if config["internal_light"]:
+      led.value(1)
+
+    if mech.HARDWARE_CONFIG["motor"]:
+        # Most devices have a motor
+        # First up, the flywheel blaster with a mechanical pusher:
+        if mech.HARDWARE_CONFIG == {"rev_switch": True, "motor": True, "solenoid": False, "fire_switch": False}:
+          while True:
+            if mech.spin_up_trigger_pulled():
+              mech.spin_up()
+            else:
+              mech.spin_down()
+            time.sleep(0.01)
+
+    else:
+      # The only device without a motor is a solenoid blaster or solenoid-backed AEB
+      while True:
+        if mech.fire_trigger_pulled():
+          mech.trigger_solenoid()
+        time.sleep(0.01)
+
+
 
 
 
