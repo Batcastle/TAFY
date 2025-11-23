@@ -44,7 +44,7 @@ def init(config):
 
     This function should also avoid actually returning anything, and instead keep it's work internal.
     """
-    print("initalizeing dummy display!")
+    print("initalizing dummy display!")
     pass
 
 
