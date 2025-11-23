@@ -1,10 +1,9 @@
 {
   "smartbus": {
-    "devices": [
-      {
+    "devices": {
+      "47000": {
         "name": "smartspine_v1",
         "role": "mag_spine",
-        "rid_bucket_ohms": 47000,
         "i2c_addresses": [48],
 
         "provides": ["ammo_level", "mag_id"],
@@ -17,10 +16,9 @@
         }
       },
 
-      {
+      "22000": {
         "name": "smartmag_v1",
         "role": "mag",
-        "rid_bucket_ohms": 22000,
         "i2c_addresses": [49],
 
         "provides": ["ammo_level", "mag_id"],
@@ -33,10 +31,9 @@
         }
       },
 
-      {
+      "33000": {
         "name": "barrel_chrono_v1",
         "role": "barrel",
-        "rid_bucket_ohms": 33000,
         "i2c_addresses": [80],
 
         "provides": ["muzzle_velocity"],
@@ -49,10 +46,9 @@
         }
       },
 
-      {
+      "4700": {
         "name": "power_only",
         "role": "power_only",
-        "rid_bucket_ohms": 4700,
         "i2c_addresses": [],
 
         "provides": [],
@@ -64,7 +60,7 @@
           "to_device": []
         }
       }
-    ],
+    },
 
     "defaults": {
       "mag_role_priority": ["mag", "mag_spine"],

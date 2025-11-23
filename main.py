@@ -52,9 +52,10 @@ import time
 import json
 import fire_mech as fm
 import display
+import SmartBus
 
 # Global variables
-VERSION = "v0.0.1-alpha0"
+VERSION = "v0.0.2-alpha0"
 
 
 def load_config():
@@ -64,10 +65,22 @@ def load_config():
             output = json.load(file)
     except:
         output = {
-    "frequency": 2,
+    "frequency": 0.5,
     "buzzer_pin": 25,
-    "startup_sound": True,
-    "volume": 0.5
+    "startup_sound": true,
+    "volume": 0.5,
+    "blaster_type": "flywheel_mechanical",
+    "display_type": "dummy",
+    "aeb_steps_per_cycle": 800,
+    "aeb_step_freq_hz": 800,
+    "flywheel_pwm_pin": 1,
+    "flywheel_rev_pin": 28,
+    "flywheel_rev_pin_normal": 0,
+    "flywheel_pwm_freq": 1000,
+    "flywheel_pwm_duty": 1.0,
+    "dart_capacity": 30,
+    "SmartBus_enabled": true,
+    "internal_light": true
 }
     return output
 
@@ -253,7 +266,7 @@ def play_tune(event, config, tunes):
     buzzer.deinit()
 
 
-def init(config):
+def init(config, manifest):
     """Initialize Libraries and Hardware"""
     output_fm = None
     output_display = None
@@ -268,6 +281,8 @@ def init(config):
 
     if output_fm is not None:
         output_fm.init(config)
+
+    SmartBus.init(config, manifest)
 
     return (output_fm, output_display)
 
@@ -293,7 +308,7 @@ def main():
         config = load_config()
         tunes = load_tunes()
         SmartBus_config = load_SmartBus_config()
-        mech, disp = init(config)
+        mech, disp = init(config, SmartBus_config)
     except Exception as error:
         # Fatal Error. Set the onboard LED to always on to show the error.
         print(f"FATAL ERROR: {error}")
@@ -326,10 +341,12 @@ def main():
         if mech.HARDWARE_CONFIG == {"rev_switch": True, "motor": True, "solenoid": False, "fire_switch": False}:
           while True:
             if mech.spin_up_trigger_pulled():
+              print("Trigger pulled!")
               mech.spin_up()
             else:
+              print("Trigger released")
               mech.spin_down()
-            time.sleep(0.01)
+            time.sleep(1)
 
     else:
       # The only device without a motor is a solenoid blaster or solenoid-backed AEB

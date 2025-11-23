@@ -1,6 +1,6 @@
 {
     "frequency": 0.5,
-    "buzzer_pin": 25,
+    "buzzer_pin": 2,
     "startup_sound": true,
     "volume": 0.5,
     "blaster_type": "flywheel_mechanical",
@@ -14,5 +14,9 @@
     "flywheel_pwm_duty": 1.0,
     "dart_capacity": 30,
     "SmartBus_enabled": true,
+    "SmartBus_SDA": 18,
+    "SmartBus_SCL": 19,
+    "SmartBus_ID": 20,
+    "SmartBus_Freq": 400000,
     "internal_light": true
 }

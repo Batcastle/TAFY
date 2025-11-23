@@ -136,8 +136,14 @@ def init(config):
 
     if "flywheel_rev_pin_normal" in config:
         INTERNAL_CONFIG["REV_PIN_NORMAL"] = config["flywheel_rev_pin_normal"]
+    # if INTERNAL_CONFIG["REV_PIN_NORMAL"] == 0:
+    #     normal = Pin.PULL_DOWN
+    # elif INTERNAL_CONFIG["REV_PIN_NORMAL"] == 1:
+    #     normal = Pin.PULL_UP
+    # else:
+    #     normal = Pin.PULL_DOWN
 
-    INTERNAL_CONFIG["REV_PIN"][1] = Pin(INTERNAL_CONFIG["REV_PIN"][0], Pin.IN)
+    INTERNAL_CONFIG["REV_PIN"][1] = Pin(INTERNAL_CONFIG["REV_PIN"][0], Pin.IN, normal)
 
 
 
@@ -156,8 +162,13 @@ def spin_up_trigger_pulled():
     Simple function to check if the flywheel spin up trigger has been pulled. Config will determine if it will pull a pin down or up.
 
     On AEBs, this should call fire_trigger_pulled(), as they do the same thing on those blasters.
+    This function also includes a small bit of debounce handling, so it does pause execution for 1/10th of a second.
     """
-    return INTERNAL_CONFIG["REV_PIN_NORMAL"] != INTERNAL_CONFIG["REV_PIN"][1].value()
+    result1 = INTERNAL_CONFIG["REV_PIN_NORMAL"] != INTERNAL_CONFIG["REV_PIN"][1].value()
+    time.sleep(0.05)
+    result2 = INTERNAL_CONFIG["REV_PIN_NORMAL"] != INTERNAL_CONFIG["REV_PIN"][1].value()
+    time.sleep(0.05)
+    return result1 and result2 and INTERNAL_CONFIG["REV_PIN_NORMAL"] != INTERNAL_CONFIG["REV_PIN"][1].value()
 
 
 def fire():

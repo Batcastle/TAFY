@@ -168,6 +168,19 @@ class MicroPythonDevice:
         if b"1" in stdout:
             return True
 
+    def update_mode(self):
+        """Put in 'update mode' (just blinks the LED really fast to notify user update/deploy is running.)"""
+        code = (
+            "from machine import Pin, Timer\n"
+            "led = Pin('LED', Pin.OUT)\n"
+            "tim = Timer()\n"
+            "def tick(timer):\n"
+            "   global led\n"
+            "   led.toggle()\n"
+            "tim.init(freq=10, mode=Timer.PERIODIC, callback=tick)\n"
+        )
+        self.exec_raw(code)
+
     def make_dirs(self, remote_dir):
         """Recursively create directories on the device (like mkdir -p)."""
         if not remote_dir:
@@ -336,6 +349,7 @@ def main():
         print("Entering raw REPL...")
         dev.enter_raw_repl()
         print("Connected. Beginning upload.\n")
+        dev.update_mode()
 
         for host_path, remote_path in files:
             print(f"[*] Deploying '{host_path}' -> '{remote_path}'")
