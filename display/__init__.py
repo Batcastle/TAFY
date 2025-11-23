@@ -36,5 +36,5 @@ def load(display: str):
 def available() -> list:
     """List available GUIs/toolkits"""
     options = os.listdir("display")
-    output = [each.split("_")[0] for each in options if "_display" == each[-11:-3]]
+    output = ["_".join(each.split("_")[:-1]) for each in options if "_display" == each[-11:-3]]
     return output

@@ -36,5 +36,5 @@ def load(fire: str):
 def available() -> list:
     """List available GUIs/toolkits"""
     options = os.listdir("fire_mech")
-    output = [each.split("_")[0] for each in options if "_fire" == each[-8:-3]]
+    output = ["_".join(each.split("_")[:-1]) for each in options if "_fire" == each[-8:-3]]
     return output
