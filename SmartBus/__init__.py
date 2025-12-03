@@ -35,10 +35,12 @@ powered barrel extensions, and more. Is has 5 pins with the following pin out:
 The ID/Sense line should be shorted to power with a resistor. This resistor should have a specific
 value to communicate what type of device it is.
 """
-from machine import Pin, I2C
+from machine import Pin
+from machine import I2C as i2c
 
 INTERNAL_CONFIG = {
-        "SmartBus_enabled": true,
+        "VERSION": "v1.2",
+        "SmartBus_enabled": True,
         "SmartBus_SDA": 18,
         "SmartBus_SCL": 19,
         "SmartBus_ID": 20,
@@ -51,6 +53,7 @@ I2C = None
 
 def init(config, manifest):
     """Initialize and configure SmartBus"""
+    print(f"Initializing SmartBus {INTERNAL_CONFIG['VERSION']}!")
     if "SmartBus_enabled" in config:
         INTERNAL_CONFIG["SmartBus_enabled"] = config["SmartBus_enabled"]
     if "SmartBus_SDA" in config:
@@ -63,5 +66,5 @@ def init(config, manifest):
         INTERNAL_CONFIG["SmartBus_Freq"] = config["SmartBus_Freq"]
 
     if INTERNAL_CONFIG["SmartBus_enabled"]:
-        I2C = I2C(1, scl=INTERNAL_CONFIG["SmartBus_SCL"], sda=INTERNAL_CONFIG["SmartBus_SDA"], freq=INTERNAL_CONFIG["SmartBus_Freq"])
+        I2C = i2c(1, scl=INTERNAL_CONFIG["SmartBus_SCL"], sda=INTERNAL_CONFIG["SmartBus_SDA"], freq=INTERNAL_CONFIG["SmartBus_Freq"])
         I2C.scan()

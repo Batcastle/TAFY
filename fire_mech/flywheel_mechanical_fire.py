@@ -136,12 +136,12 @@ def init(config):
 
     if "flywheel_rev_pin_normal" in config:
         INTERNAL_CONFIG["REV_PIN_NORMAL"] = config["flywheel_rev_pin_normal"]
-    # if INTERNAL_CONFIG["REV_PIN_NORMAL"] == 0:
-    #     normal = Pin.PULL_DOWN
-    # elif INTERNAL_CONFIG["REV_PIN_NORMAL"] == 1:
-    #     normal = Pin.PULL_UP
-    # else:
-    #     normal = Pin.PULL_DOWN
+    if INTERNAL_CONFIG["REV_PIN_NORMAL"] == 0:
+        normal = Pin.PULL_DOWN
+    elif INTERNAL_CONFIG["REV_PIN_NORMAL"] == 1:
+        normal = Pin.PULL_UP
+    else:
+        normal = Pin.PULL_DOWN
 
     INTERNAL_CONFIG["REV_PIN"][1] = Pin(INTERNAL_CONFIG["REV_PIN"][0], Pin.IN, normal)
 

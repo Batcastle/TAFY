@@ -284,6 +284,8 @@ def init(config, manifest):
 
     SmartBus.init(config, manifest)
 
+    print("Successfully Initialized!")
+
     return (output_fm, output_display)
 
 
@@ -306,13 +308,25 @@ def main():
     led = Pin("LED", Pin.OUT)
     try:
         config = load_config()
+    except Exception as error:
+        print(f"FATAL ERROR: {error}")
+        blink(1, led)
+    try:
         tunes = load_tunes()
+    except Exception as error:
+        print(f"FATAL ERROR: {error}")
+        blink(0.5, led)
+    try:
         SmartBus_config = load_SmartBus_config()
+    except Exception as error:
+        print(f"FATAL ERROR: {error}")
+        blink(0.3, led)
+    try:
         mech, disp = init(config, SmartBus_config)
     except Exception as error:
         # Fatal Error. Set the onboard LED to always on to show the error.
         print(f"FATAL ERROR: {error}")
-        blink(0.5, led)
+        blink(0.25, led)
 
     if disp is None:
         print(f"No known working driver for display of type: {config['display_type']}")
@@ -346,7 +360,7 @@ def main():
             else:
               print("Trigger released")
               mech.spin_down()
-            time.sleep(1)
+            time.sleep(0.01)
 
     else:
       # The only device without a motor is a solenoid blaster or solenoid-backed AEB
