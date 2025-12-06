@@ -235,13 +235,16 @@ def play_tune(event, config, tunes):
     if event.lower() == "startup":
         try:
             tune = tunes[event][config["startup_sound"]]
-        except:
+        except KeyError:
             # No tune found with that name
+            print(f"No tune found with name: {config['startup_sound']}")
             return
     else:
         try:
             tune = tunes["status"][event]
-        except:
+        except KeyError:
+            # No tune found with that name
+            print(f"No tune found with name: {event}")
             return
 
     notes = tune["notes"]
