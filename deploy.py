@@ -168,7 +168,7 @@ class MicroPythonDevice:
         if b"1" in stdout:
             return True
 
-    def update_mode(self):
+    def start_update_mode(self):
         """Put in 'update mode' (just blinks the LED really fast to notify user update/deploy is running.)"""
         code = (
             "from machine import Pin, Timer\n"
@@ -322,11 +322,6 @@ def main():
         action="store_true",
         help="Overwrite existing files without prompting"
     )
-    parser.add_argument(
-        "-r", "--run",
-        action="store_true",
-        help="Soft-reset the board after upload to run the code"
-    )
 
     args = parser.parse_args()
 
@@ -349,7 +344,7 @@ def main():
         print("Entering raw REPL...")
         dev.enter_raw_repl()
         print("Connected. Beginning upload.\n")
-        dev.update_mode()
+        dev.start_update_mode()
 
         for host_path, remote_path in files:
             print(f"[*] Deploying '{host_path}' -> '{remote_path}'")
@@ -381,19 +376,17 @@ def main():
             dev.write_file(remote_path, data)
             print("    [OK]\n")
 
-        if args.run:
-            print("[INFO] Requesting soft reset to run code on device...")
-            dev.exec_raw("import machine\nmachine.soft_reset()\n")
-            ran_code = True
+        print("[INFO] Requesting soft reset on device...")
+        dev.exec_raw("import machine\nmachine.soft_reset()\n")
 
         print("All done.")
 
     finally:
         print("Exiting raw REPL and closing serial...")
         try:
-            if not ran_code:
-                dev.exit_raw_repl()
-        except Exception:
+            dev.exit_raw_repl()
+        except:
+            print("[WARNING] Could not close raw REPL! Please unplug and re-plug in your device to reboot it!")
             pass
         dev.close()
 
