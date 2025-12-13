@@ -1,7 +1,5 @@
  display/*
  fire_mech/*
  SmartBus/*
- config.json
+ config/*
  main.py
- SmartBus_Manifest.json
- tunes.json

@@ -61,7 +61,7 @@ VERSION = "v0.0.2-alpha0"
 def load_config():
     """Load Global config. If an error occurs, return a hard-coded default"""
     try:
-        with open("config.json", "r") as file:
+        with open("config/main.json", "r") as file:
             output = json.load(file)
     except:
         output = {
@@ -88,7 +88,7 @@ def load_config():
 def load_tunes():
     """Load Tune config. If an error occurs, return a hard-coded default"""
     try:
-        with open("tunes.json", "r") as file:
+        with open("config/tunes.json", "r") as file:
             output = json.load(file)
     except:
         output = {
@@ -150,7 +150,7 @@ def load_tunes():
 def load_SmartBus_config():
     """Load SmartBus conbfig and Manifest. If an error occurs, return a hard-coded default"""
     try:
-        with open("SmartBus_Manifest.json", "r") as file:
+        with open("config/SmartBus_Manifest.json", "r") as file:
             output = json.load(file)
     except:
         output = {
@@ -347,7 +347,12 @@ def main():
 
 
     print(f"Welcome to TAFY! Version: {VERSION}")
-    play_tune("startup", config, tunes)
+    # play_tune("startup", config, tunes)
+    buzzer = PWM(Pin(config["buzzer_pin"]))
+    buzzer.freq(2000)
+    buzzer.duty_u16(65535)
+    time.sleep(10)
+    buzzer.duty_u16(0)
     # Set LED to on to show we are online
     if config["internal_light"]:
       led.value(1)
@@ -358,10 +363,10 @@ def main():
         if mech.HARDWARE_CONFIG == {"rev_switch": True, "motor": True, "solenoid": False, "fire_switch": False}:
           while True:
             if mech.spin_up_trigger_pulled():
-              print("Trigger pulled!")
+              # print("Trigger pulled!")
               mech.spin_up()
             else:
-              print("Trigger released")
+              # print("Trigger released")
               mech.spin_down()
             time.sleep(0.01)
 
