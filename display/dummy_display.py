@@ -32,7 +32,7 @@ DISPLAY_TYPE = "DUMMY"
 THREAD_OBJ = None
 
 
-def init(config):
+def init(config: dict, i2c_bus) -> None:
     """
     Under normal circumstances, this function would serve to initalize any displays, be it over UART, I2C, GPIO, or something else.
 

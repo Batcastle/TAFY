@@ -285,16 +285,17 @@ def init(config, manifest):
     if config["display_type"] in display.available():
         output_display = display.load(config["display_type"])
 
+    int_i2c = I2C(1, scl=Pin(config["Internal_SCL"]), sda=Pin(config["Internal_SDA"]), freq=config["Internal_freq"])
+
     # Here, we should now run any hardware initialization code we need to.
     if output_display is not None:
-        output_display.init(config)
+        output_display.init(config, int_i2c)
 
     if output_fm is not None:
         output_fm.init(config)
 
-    int_i2c = I2C(1, scl=Pin(config["Internal_SCL"]), sda=Pin(config["Internal_SDA"]), freq=config["Internal_freq"])
 
-    # SmartBus.init(config, manifest)
+    SmartBus.init(config, manifest)
 
     print("Successfully Initialized!")
 

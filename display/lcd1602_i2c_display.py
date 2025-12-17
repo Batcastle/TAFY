@@ -1,4 +1,6 @@
 import json
+from time import sleep
+
 
 DRIVER = None
 
@@ -11,7 +13,7 @@ I2C_OBJ = None
 INTERNAL_SETTINGS = {}
 
 
-def init(i2c_obj) -> None:
+def init(config, i2c_obj) -> None:
     """Initalize 7 segment display, determine type and load necessary driver"""
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
@@ -26,7 +28,7 @@ def init(i2c_obj) -> None:
     if "ADDR" not in INTERNAL_SETTINGS:
         raise Exception(f"Device LCD1602 - I2C not found at any supported address.")
 
-    mylcd = I2C_LCD_driver.lcd()
+    mylcd = I2C_LCD_driver.lcd(INTERNAL_SETTINGS["ADDR"])
     mylcd.lcd_display_string("Welcome to TAFY!", 1)
 
 
@@ -54,40 +56,30 @@ I2CBUS = 0
 # LCD Address
 ADDRESS = 0x27
 
-import smbus
-from time import sleep
+# import smbus
 
 class i2c_device:
-   def __init__(self, addr, port=I2CBUS):
+   def __init__(self, addr):
       self.addr = addr
-      self.bus = smbus.SMBus(port)
+      # self.bus = smbus.SMBus(port)
 
 # Write a single command
    def write_cmd(self, cmd):
-      self.bus.write_byte(self.addr, cmd)
+      I2C_OBJ.writeto(self.addr, cmd)
       sleep(0.0001)
 
 # Write a command and argument
    def write_cmd_arg(self, cmd, data):
-      self.bus.write_byte_data(self.addr, cmd, data)
+      I2C_OBJ.writeto(self.addr, cmd + data)
       sleep(0.0001)
 
 # Write a block of data
    def write_block_data(self, cmd, data):
-      self.bus.write_block_data(self.addr, cmd, data)
-      sleep(0.0001)
-
-# Read a single byte
-   def read(self):
-      return self.bus.read_byte(self.addr)
+      I2C_OBJ.writeto(self.addr, cmd + data)
 
 # Read
-   def read_data(self, cmd):
-      return self.bus.read_byte_data(self.addr, cmd)
-
-# Read a block of data
-   def read_block_data(self, cmd):
-      return self.bus.read_block_data(self.addr, cmd)
+   def read_len(self, length):
+      return I2C_OBJ.readfrom(self.addr, length)
 
 
 # commands
@@ -138,8 +130,8 @@ Rs = 0b00000001 # Register select bit
 
 class lcd:
    #initializes objects and lcd
-   def __init__(self):
-      self.lcd_device = i2c_device(ADDRESS)
+   def __init__(self, addr):
+      self.lcd_device = i2c_device(addr)
 
       self.lcd_write(0x03)
       self.lcd_write(0x03)
