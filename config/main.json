@@ -4,7 +4,7 @@
     "startup_sound": true,
     "volume": 1.0,
     "blaster_type": "flywheel_mechanical",
-    "display_type": "dummy",
+    "display_type": "lcd1602_i2c",
     "aeb_steps_per_cycle": 800,
     "aeb_step_freq_hz": 800,
     "flywheel_pwm_pin": 12,
