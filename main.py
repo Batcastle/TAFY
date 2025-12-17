@@ -47,7 +47,7 @@ Features:
 
 TAFY and associated hardware files are 100% open-source and free to use!
 """
-from machine import Pin, PWM
+from machine import Pin, PWM, I2C
 import time
 import json
 import fire_mech as fm
@@ -80,7 +80,14 @@ def load_config():
     "flywheel_pwm_duty": 1.0,
     "dart_capacity": 30,
     "SmartBus_enabled": true,
-    "internal_light": true
+    "internal_light": true,
+    "Internal_SDA": 19,
+    "Internal_SCL": 18,
+    "Internal_freq": 400000,
+    "SmartBus_SDA": 16,
+    "SmartBus_SCL": 17,
+    "SmartBus_ID": 26,
+    "SmartBus_Freq": 400000
 }
     return output
 
@@ -285,11 +292,13 @@ def init(config, manifest):
     if output_fm is not None:
         output_fm.init(config)
 
-    SmartBus.init(config, manifest)
+    int_i2c = I2C(1, scl=Pin(config["Internal_SCL"]), sda=Pin(config["Internal_SDA"]), freq=config["Internal_freq"])
+
+    # SmartBus.init(config, manifest)
 
     print("Successfully Initialized!")
 
-    return (output_fm, output_display)
+    return (output_fm, output_display, int_i2c)
 
 
 def blink(sleep, led):
@@ -312,23 +321,23 @@ def main():
     try:
         config = load_config()
     except Exception as error:
-        print(f"FATAL ERROR: {error}")
+        print(f"FATAL CONFIG ERROR: {error}")
         blink(1, led)
     try:
         tunes = load_tunes()
     except Exception as error:
-        print(f"FATAL ERROR: {error}")
+        print(f"FATAL TUNE CONFIG ERROR: {error}")
         blink(0.5, led)
     try:
         SmartBus_config = load_SmartBus_config()
     except Exception as error:
-        print(f"FATAL ERROR: {error}")
+        print(f"FATAL SMARTBUS CONFIG ERROR: {error}")
         blink(0.3, led)
     try:
-        mech, disp = init(config, SmartBus_config)
+        mech, disp, int_i2c = init(config, SmartBus_config)
     except Exception as error:
         # Fatal Error. Set the onboard LED to always on to show the error.
-        print(f"FATAL ERROR: {error}")
+        print(f"FATAL DRIVER/SMARTBUS ERROR: {error}")
         blink(0.25, led)
 
     if disp is None:

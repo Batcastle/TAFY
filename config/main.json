@@ -14,11 +14,12 @@
     "flywheel_pwm_duty": 1.0,
     "dart_capacity": 30,
     "SmartBus_enabled": true,
-    "SmartBus_SDA": 20,
-    "SmartBus_SCL": 21,
+    "SmartBus_SDA": 16,
+    "SmartBus_SCL": 17,
     "SmartBus_ID": 26,
     "SmartBus_Freq": 400000,
     "internal_light": true,
     "Internal_SDA": 19,
-    "Internal_SCL": 18
+    "Internal_SCL": 18,
+    "Internal_freq": 400000
 }

@@ -41,9 +41,9 @@ from machine import I2C as i2c
 INTERNAL_CONFIG = {
         "VERSION": "v1.2",
         "SmartBus_enabled": True,
-        "SmartBus_SDA": 18,
-        "SmartBus_SCL": 19,
-        "SmartBus_ID": 20,
+        "SmartBus_SDA": 20,
+        "SmartBus_SCL": 21,
+        "SmartBus_ID": 26,
         "SmartBus_Freq": 100000
     }
 
@@ -66,5 +66,5 @@ def init(config, manifest):
         INTERNAL_CONFIG["SmartBus_Freq"] = config["SmartBus_Freq"]
 
     if INTERNAL_CONFIG["SmartBus_enabled"]:
-        I2C = i2c(1, scl=INTERNAL_CONFIG["SmartBus_SCL"], sda=INTERNAL_CONFIG["SmartBus_SDA"], freq=INTERNAL_CONFIG["SmartBus_Freq"])
-        I2C.scan()
+        I2C = i2c(1, scl=Pin(INTERNAL_CONFIG["SmartBus_SCL"]), sda=Pin(INTERNAL_CONFIG["SmartBus_SDA"]), freq=INTERNAL_CONFIG["SmartBus_Freq"])
+        results = I2C.scan()
