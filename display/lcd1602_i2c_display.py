@@ -18,17 +18,18 @@ def init(config, i2c_obj) -> None:
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
     with open("config/lcd1602_i2c.json", "r") as file:
-        INTERNAL_SETTINGS = json.load(file)
+        config = json.load(file)
 
     for each in results:
-        if str(each) in results:
+        print(str(each))
+        if str(each) in config["supported"]:
             INTERNAL_SETTINGS["ADDR"] = each
             break
 
     if "ADDR" not in INTERNAL_SETTINGS:
         raise Exception(f"Device LCD1602 - I2C not found at any supported address.")
 
-    mylcd = I2C_LCD_driver.lcd(INTERNAL_SETTINGS["ADDR"])
+    mylcd = lcd(INTERNAL_SETTINGS["ADDR"])
     mylcd.lcd_display_string("Welcome to TAFY!", 1)
 
 
@@ -169,19 +170,19 @@ class lcd:
 
    # put string function with optional char positioning
    def lcd_display_string(self, string, line=1, pos=0):
-    if line == 1:
-      pos_new = pos
-    elif line == 2:
-      pos_new = 0x40 + pos
-    elif line == 3:
-      pos_new = 0x14 + pos
-    elif line == 4:
-      pos_new = 0x54 + pos
+      if line == 1:
+        pos_new = pos
+      elif line == 2:
+        pos_new = 0x40 + pos
+      elif line == 3:
+        pos_new = 0x14 + pos
+      elif line == 4:
+        pos_new = 0x54 + pos
 
-    self.lcd_write(0x80 + pos_new)
+      self.lcd_write(0x80 + pos_new)
 
-    for char in string:
-      self.lcd_write(ord(char), Rs)
+      for char in string:
+        self.lcd_write(ord(char), Rs)
 
    # clear lcd and set to home
    def lcd_clear(self):
