@@ -66,5 +66,11 @@ def init(config, manifest):
         INTERNAL_CONFIG["SmartBus_Freq"] = config["SmartBus_Freq"]
 
     if INTERNAL_CONFIG["SmartBus_enabled"]:
-        I2C = i2c(0, scl=Pin(INTERNAL_CONFIG["SmartBus_SCL"]), sda=Pin(INTERNAL_CONFIG["SmartBus_SDA"]), freq=INTERNAL_CONFIG["SmartBus_Freq"])
+        if (config["SmartBus_SCL"] in config["I2C_MAP"][0]) and (config["SmartBus_SDA"] in config["I2C_MAP"][0]):
+            bus = 0
+        elif (config["SmartBus_SCL"] in config["I2C_MAP"][1]) and (config["SmartBus_SDA"] in config["I2C_MAP"][1]):
+            bus = 1
+        else:
+            raise Exception("SmartBus I2C lines not on same bus")
+        I2C = i2c(bus, scl=Pin(INTERNAL_CONFIG["SmartBus_SCL"], Pin.PULL_UP), sda=Pin(INTERNAL_CONFIG["SmartBus_SDA"], Pin.PULL_UP), freq=INTERNAL_CONFIG["SmartBus_Freq"])
         results = I2C.scan()

@@ -87,8 +87,15 @@ def load_config():
     "SmartBus_SDA": 16,
     "SmartBus_SCL": 17,
     "SmartBus_ID": 26,
-    "SmartBus_Freq": 400000
+    "SmartBus_Freq": 400000,
+    "I2C_MAP": { "0": [0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21],
+                 "1": [2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 26, 27]
+                }
 }
+    output["I2C_MAP"][0] = output["I2C_MAP"]["0"]
+    output["I2C_MAP"][1] = output["I2C_MAP"]["1"]
+    del output["I2C_MAP"]["0"]
+    del output["I2C_MAP"]["1"]
     return output
 
 
@@ -285,7 +292,13 @@ def init(config, manifest):
     if config["display_type"] in display.available():
         output_display = display.load(config["display_type"])
 
-    int_i2c = I2C(1, scl=Pin(config["Internal_SCL"]), sda=Pin(config["Internal_SDA"]), freq=config["Internal_freq"])
+    if (config["Internal_SCL"] in config["I2C_MAP"][0]) and (config["Internal_SDA"] in config["I2C_MAP"][0]):
+      bus = 0
+    elif (config["Internal_SCL"] in config["I2C_MAP"][1]) and (config["Internal_SDA"] in config["I2C_MAP"][1]):
+      bus = 1
+    else:
+      raise Exception("INTERNAL I2C lines not on same bus")
+    int_i2c = I2C(bus, scl=Pin(config["Internal_SCL"], Pin.PULL_UP), sda=Pin(config["Internal_SDA"], Pin.PULL_UP), freq=config["Internal_freq"])
 
     # Here, we should now run any hardware initialization code we need to.
     if output_display is not None:
@@ -295,7 +308,7 @@ def init(config, manifest):
         output_fm.init(config)
 
 
-    SmartBus.init(config, manifest)
+    # SmartBus.init(config, manifest)
 
     print("Successfully Initialized!")
 
@@ -360,7 +373,7 @@ def main():
     # play_tune("startup", config, tunes)
     buzzer = PWM(Pin(config["buzzer_pin"]))
     buzzer.freq(2000)
-    buzzer.duty_u16(65535)
+    buzzer.duty_u16(32768)
     time.sleep(10)
     buzzer.duty_u16(0)
     # Set LED to on to show we are online

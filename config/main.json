@@ -14,12 +14,15 @@
     "flywheel_pwm_duty": 1.0,
     "dart_capacity": 30,
     "SmartBus_enabled": true,
-    "SmartBus_SDA": 16,
-    "SmartBus_SCL": 17,
+    "SmartBus_SDA": 19,
+    "SmartBus_SCL": 18,
     "SmartBus_ID": 26,
     "SmartBus_Freq": 400000,
     "internal_light": true,
-    "Internal_SDA": 19,
-    "Internal_SCL": 18,
-    "Internal_freq": 400000
+    "Internal_SDA": 16,
+    "Internal_SCL": 17,
+    "Internal_freq": 400000,
+    "I2C_MAP": { "0": [0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21],
+                 "1": [2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 26, 27]
+                }
 }
