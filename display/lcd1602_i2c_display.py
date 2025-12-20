@@ -18,19 +18,22 @@ def init(config, i2c_obj) -> None:
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
     with open("config/lcd1602_i2c.json", "r") as file:
-        config = json.load(file)
+        lcd_config = json.load(file)
 
     for each in results:
-        print(str(each))
-        if str(each) in config["supported"]:
+        if str(each) in lcd_config["supported"]:
             INTERNAL_SETTINGS["ADDR"] = each
             break
 
     if "ADDR" not in INTERNAL_SETTINGS:
         raise Exception(f"Device LCD1602 - I2C not found at any supported address.")
 
-    mylcd = lcd(INTERNAL_SETTINGS["ADDR"])
-    mylcd.lcd_display_string("Welcome to TAFY!", 1)
+    mylcd = lcd(INTERNAL_SETTINGS["ADDR"], i2c_obj)
+    mylcd.backlight(0)
+    mylcd.backlight(1)
+    mylcd.lcd_clear()
+    mylcd.lcd_display_string("Welcome to TAFY!", line=1, clear=True)
+    mylcd.lcd_display_string(config['VERSION'], line=2, clear=False)
 
 
 
@@ -60,27 +63,38 @@ ADDRESS = 0x27
 # import smbus
 
 class i2c_device:
-   def __init__(self, addr):
+   def __init__(self, addr, i2c_obj):
       self.addr = addr
+      self.i2c_bus = i2c_obj
       # self.bus = smbus.SMBus(port)
 
 # Write a single command
-   def write_cmd(self, cmd):
-      I2C_OBJ.writeto(self.addr, cmd)
+   def write_cmd(self, cmd: bytes):
+      if not isinstance(cmd, (bytes, bytearray)):
+          raise Exception("cmd must be bytes or bytes array when calling i2c_device.write_cmd()")
+      self.i2c_bus.writeto(self.addr, cmd)
       sleep(0.0001)
 
 # Write a command and argument
-   def write_cmd_arg(self, cmd, data):
-      I2C_OBJ.writeto(self.addr, cmd + data)
+   def write_cmd_arg(self, cmd: bytes, data: bytes):
+      if not isinstance(cmd, (bytes, bytearray)):
+          raise Exception("cmd must be bytes or bytes array when calling i2c_device.write_cmd_arg()")
+      if not isinstance(data, (bytes, bytearray)):
+          raise Exception("data must be bytes or bytes array when calling i2c_device.write_cmd_arg()")
+      self.i2c_bus.writeto(self.addr, cmd + data)
       sleep(0.0001)
 
 # Write a block of data
-   def write_block_data(self, cmd, data):
-      I2C_OBJ.writeto(self.addr, cmd + data)
+   def write_block_data(self, cmd: bytes, data: bytes):
+      if not isinstance(cmd, (bytes, bytearray)):
+          raise Exception("cmd must be bytes or bytes array when calling i2c_device.write_block_data()")
+      if not isinstance(data, (bytes, bytearray)):
+          raise Exception("data must be bytes or bytes array when calling i2c_device.write_block_data()")
+      self.i2c_bus.writeto(self.addr, cmd + data)
 
 # Read
-   def read_len(self, length):
-      return I2C_OBJ.readfrom(self.addr, length)
+   def read_len(self, length: int) -> bytes:
+      return self.i2c_bus.readfrom(self.addr, length)
 
 
 # commands
@@ -131,8 +145,8 @@ Rs = 0b00000001 # Register select bit
 
 class lcd:
    #initializes objects and lcd
-   def __init__(self, addr):
-      self.lcd_device = i2c_device(addr)
+   def __init__(self, addr, i2c_obj):
+      self.lcd_device = i2c_device(addr, i2c_obj)
 
       self.lcd_write(0x03)
       self.lcd_write(0x03)
@@ -148,13 +162,13 @@ class lcd:
 
    # clocks EN to latch command
    def lcd_strobe(self, data):
-      self.lcd_device.write_cmd(data | En | LCD_BACKLIGHT)
+      self.lcd_device.write_cmd(bytes(data | En | LCD_BACKLIGHT))
       sleep(.0005)
-      self.lcd_device.write_cmd(((data & ~En) | LCD_BACKLIGHT))
+      self.lcd_device.write_cmd(bytes((data & ~En) | LCD_BACKLIGHT))
       sleep(.0001)
 
    def lcd_write_four_bits(self, data):
-      self.lcd_device.write_cmd(data | LCD_BACKLIGHT)
+      self.lcd_device.write_cmd(bytes(data | LCD_BACKLIGHT))
       self.lcd_strobe(data)
 
    # write a command to lcd
@@ -169,7 +183,9 @@ class lcd:
       self.lcd_write_four_bits(mode | ((charvalue << 4) & 0xF0))
 
    # put string function with optional char positioning
-   def lcd_display_string(self, string, line=1, pos=0):
+   def lcd_display_string(self, string, line=1, pos=0, clear=True):
+      if clear:
+         self.lcd_clear()
       if line == 1:
         pos_new = pos
       elif line == 2:
@@ -192,9 +208,9 @@ class lcd:
    # define backlight on/off (lcd.backlight(1); off= lcd.backlight(0)
    def backlight(self, state): # for state, 1 = on, 0 = off
       if state == 1:
-         self.lcd_device.write_cmd(LCD_BACKLIGHT)
+         self.lcd_device.write_cmd(bytes(LCD_BACKLIGHT))
       elif state == 0:
-         self.lcd_device.write_cmd(LCD_NOBACKLIGHT)
+         self.lcd_device.write_cmd(bytes(LCD_NOBACKLIGHT))
 
    # add custom characters (0 - 7)
    def lcd_load_custom_chars(self, fontdata):
