@@ -1,3 +1,4 @@
 {
-    "supported": ["39"]
+    "supported": ["39", "63"],
+    "backlight_active_high": true
 }

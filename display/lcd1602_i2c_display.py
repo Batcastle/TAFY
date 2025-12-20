@@ -29,6 +29,7 @@ def init(config, i2c_obj) -> None:
         raise Exception(f"Device LCD1602 - I2C not found at any supported address.")
 
     mylcd = lcd(INTERNAL_SETTINGS["ADDR"], i2c_obj)
+    mylcd.active_high_backlight = lcd_config["backlight_active_high"]
     mylcd.backlight(0)
     mylcd.backlight(1)
     mylcd.lcd_clear()
@@ -148,31 +149,38 @@ class lcd:
    def __init__(self, addr, i2c_obj):
       self.lcd_device = i2c_device(addr, i2c_obj)
 
-      self.lcd_write(0x03)
-      self.lcd_write(0x03)
-      self.lcd_write(0x03)
-      self.lcd_write(0x02)
+      self.active_high_backlight = True
+      self.backlight_mode = True
+
+      self.lcd_write(0x33)
+      self.lcd_write(0x32)
+      # self.lcd_write(0x03)
+      # self.lcd_write(0x02)
 
       self.lcd_write(LCD_FUNCTIONSET | LCD_2LINE | LCD_5x8DOTS | LCD_4BITMODE)
       self.lcd_write(LCD_DISPLAYCONTROL | LCD_DISPLAYON)
-      self.lcd_write(LCD_CLEARDISPLAY)
       self.lcd_write(LCD_ENTRYMODESET | LCD_ENTRYLEFT)
+      self.lcd_write(LCD_CLEARDISPLAY)
+
       sleep(0.2)
 
+   def _b(self, v: int) -> bytes:
+    return bytes([v & 0xFF])
 
    # clocks EN to latch command
    def lcd_strobe(self, data):
-      self.lcd_device.write_cmd(bytes(data | En | LCD_BACKLIGHT))
+      self.lcd_device.write_cmd(self._b((data | En | self._get_backlight_bit())))
       sleep(.0005)
-      self.lcd_device.write_cmd(bytes((data & ~En) | LCD_BACKLIGHT))
+      self.lcd_device.write_cmd(self._b(((data & ~En) | self._get_backlight_bit())))
       sleep(.0001)
 
    def lcd_write_four_bits(self, data):
-      self.lcd_device.write_cmd(bytes(data | LCD_BACKLIGHT))
+      self.lcd_device.write_cmd(self._b((data | self._get_backlight_bit())))
       self.lcd_strobe(data)
 
    # write a command to lcd
    def lcd_write(self, cmd, mode=0):
+
       self.lcd_write_four_bits(mode | (cmd & 0xF0))
       self.lcd_write_four_bits(mode | ((cmd << 4) & 0xF0))
 
@@ -207,10 +215,33 @@ class lcd:
 
    # define backlight on/off (lcd.backlight(1); off= lcd.backlight(0)
    def backlight(self, state): # for state, 1 = on, 0 = off
-      if state == 1:
-         self.lcd_device.write_cmd(bytes(LCD_BACKLIGHT))
-      elif state == 0:
-         self.lcd_device.write_cmd(bytes(LCD_NOBACKLIGHT))
+      # if self.active_high_backlight:
+      #    if state == 1:
+      #       self.lcd_device.write_cmd(bytes(LCD_BACKLIGHT))
+      #       self.backlight_mode = True
+      #    elif state == 0:
+      #       self.lcd_device.write_cmd(bytes(LCD_NOBACKLIGHT))
+      #       self.backlight_mode = False
+      # else:
+      #    # This is in case we are active low, which means the backlight bit is reversed
+      #    if state == 1:
+      #       self.lcd_device.write_cmd(bytes(LCD_NOBACKLIGHT))
+      #       self.backlight_mode = True
+      #    elif state == 0:
+      #       self.lcd_device.write_cmd(bytes(LCD_BACKLIGHT))
+      #       self.backlight_mode = False
+      self.backlight_mode = (state == 1)
+      self.lcd_device.write_cmd(self._b(self._get_backlight_bit()))
+
+   def _get_backlight_bit(self) -> hex:
+      if self.active_high_backlight:
+         if self.backlight_mode:
+            return LCD_BACKLIGHT
+         return LCD_NOBACKLIGHT
+      else:
+         if self.backlight_mode:
+            return LCD_NOBACKLIGHT
+         return LCD_BACKLIGHT
 
    # add custom characters (0 - 7)
    def lcd_load_custom_chars(self, fontdata):
