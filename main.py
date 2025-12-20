@@ -55,7 +55,7 @@ import display
 import SmartBus
 
 # Global variables
-VERSION = "v0.0.2-alpha0"
+VERSION = "v0.0.4-alpha0"
 
 
 def load_config():
@@ -245,7 +245,7 @@ def load_SmartBus_config():
     return output
 
 
-def play_tune(event, config, tunes):
+def play_tune(event, config, tunes, buzzer):
     if event.lower() == "startup":
         try:
             tune = tunes[event][config["startup_sound"]]
@@ -264,7 +264,6 @@ def play_tune(event, config, tunes):
     notes = tune["notes"]
     tempo = tune["tempo"]
 
-    buzzer = PWM(Pin(config["buzzer_pin"]))
     # Scale volume (0.0–1.0) into duty_u16 (0–65535)
     duty = int(65535 * max(0.0, min(1.0, config["volume"])))
 
@@ -280,7 +279,6 @@ def play_tune(event, config, tunes):
         time.sleep_ms(dur)
 
     buzzer.duty_u16(0)
-    buzzer.deinit()
 
 
 def init(config, manifest):
@@ -308,7 +306,7 @@ def init(config, manifest):
         output_fm.init(config)
 
 
-    # SmartBus.init(config, manifest)
+    SmartBus.init(config, manifest)
 
     print("Successfully Initialized!")
 
@@ -337,6 +335,10 @@ def main():
     except Exception as error:
         print(f"FATAL CONFIG ERROR: {error}")
         blink(1, led)
+
+    config["VERSION"] = VERSION
+    buzzer = PWM(Pin(config["buzzer_pin"]))
+
     try:
         tunes = load_tunes()
     except Exception as error:
@@ -370,12 +372,12 @@ def main():
 
 
     print(f"Welcome to TAFY! Version: {VERSION}")
-    # play_tune("startup", config, tunes)
-    buzzer = PWM(Pin(config["buzzer_pin"]))
-    buzzer.freq(2000)
-    buzzer.duty_u16(32768)
-    time.sleep(10)
-    buzzer.duty_u16(0)
+    play_tune("startup", config, tunes, buzzer)
+    # buzzer = PWM(Pin(config["buzzer_pin"]))
+    # buzzer.freq(2000)
+    # buzzer.duty_u16(32768)
+    # time.sleep(10)
+    # buzzer.duty_u16(0)
     # Set LED to on to show we are online
     if config["internal_light"]:
       led.value(1)
