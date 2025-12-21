@@ -432,6 +432,19 @@ def main():
             time.sleep(0.01)
 
 
+# This functions are not to run continuously. Other operations must be performed in the main loop
+# Further, these functions DO NOT CHECK THE SAFETY. That is done in the main loop.
+# In fact, none of these should interact with pins directly, but instead use the helper functions.
+def single_shot():
+    pass
+
+
+def burst_shot():
+    pass
+
+
+def full_auto():
+    pass
 
 
 def is_safety_on(pin):
