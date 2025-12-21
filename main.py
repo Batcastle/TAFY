@@ -388,6 +388,9 @@ def main():
 
 
 
+    # Safety low == safety on, therefore, set the safety pin to default low
+    # in case of a disconnect for safety purposes
+    safety_pin = Pin(config["safety_pin"], Pin.IN, Pin.PULL_DOWN)
     print(f"Welcome to TAFY! Version: {VERSION}")
     play_tune("startup", config, tunes, buzzer)
     # buzzer = PWM(Pin(config["buzzer_pin"]))

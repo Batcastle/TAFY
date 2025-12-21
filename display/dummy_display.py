@@ -31,6 +31,14 @@ DISPLAY_TYPE = "DUMMY"
 # This variable stores the thread object, in case the main thread needs to interact with it in some weird way
 THREAD_OBJ = None
 
+STATE = {"SAFETY": True,
+         "CAPACITY": 0,
+         "STATUS": "GOOD",
+         "MODE":  "SAFE",
+         "BATTERY": None}
+
+DISPLAY_MODE = {1: "STATUS",
+                2: "MODE"}
 
 def init(config: dict, i2c_bus) -> None:
     """

@@ -1,59 +1,60 @@
 import json
 from time import sleep
-
-
-DRIVER = None
+import machine
 
 DISPLAY_TYPE = "LCD1602 - I2C"
 
-THREAD_OBJ = None
+STATE = {"SAFETY": True,
+         "CAPACITY": 0,
+         "STATUS": "GOOD",
+         "MODE":  "SAFE",
+         "BATTERY": None}
 
-I2C_OBJ = None
+DISPLAY_MODE = {1: "STATUS",
+                2: "MODE"}
 
-INTERNAL_SETTINGS = {}
 
-
-def init(config, i2c_obj) -> None:
+def init(config, i2c_obj, silent=False, split_thread=True):
     """Initalize 7 segment display, determine type and load necessary driver"""
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
+    addr = None
     with open("config/lcd1602_i2c.json", "r") as file:
         lcd_config = json.load(file)
 
     for each in results:
         if str(each) in lcd_config["supported"]:
-            INTERNAL_SETTINGS["ADDR"] = each
+            addr = each
             break
 
-    if "ADDR" not in INTERNAL_SETTINGS:
-        raise Exception(f"Device LCD1602 - I2C not found at any supported address.")
+    if addr is None:
+        raise Exception("Device LCD1602 - I2C not found at any supported address.")
 
-    mylcd = lcd(INTERNAL_SETTINGS["ADDR"], i2c_obj)
-    mylcd.active_high_backlight = lcd_config["backlight_active_high"]
-    mylcd.backlight(0)
-    mylcd.backlight(1)
-    mylcd.lcd_clear()
-    mylcd.lcd_display_string("Welcome to TAFY!", line=1, clear=True)
-    mylcd.lcd_display_string(config['VERSION'], line=2, clear=False)
+    display = LCD(addr, i2c_obj)
+    display.active_high_backlight = lcd_config["backlight_active_high"]
+    if not silent:
+        display.lcd_display_string("Welcome to TAFY!", line=1, clear=True)
+        display.lcd_display_string(config['VERSION'], line=2, clear=False)
+
+    if split_thread:
+        timer = machine.Timer()
+        timer.init(freq=lcd_config["refresh_rate"], mode=Timer.PERIODIC,
+                   callback=lambda t: display_main(display, lcd_config, config))
+        return timer
+    return display
 
 
-
-# -*- coding: utf-8 -*-
-# Original code found at:
-# https://gist.github.com/DenisFromHR/cc863375a6e19dce359d
-
-"""
-Compiled, mashed and generally mutilated 2014-2015 by Denis Pleic
-Made available under GNU GENERAL PUBLIC LICENSE
-
-# Modified Python I2C library for Raspberry Pi
-# as found on http://www.recantha.co.uk/blog/?p=4849
-# Joined existing 'i2c_lib.py' and 'lcddriver.py' into a single library
-# added bits and pieces from various sources
-# By DenisFromHR (Denis Pleic)
-# 2015-02-10, ver 0.1
-
-"""
+def display_main(lcd_obj, lcd_config: dict, global_config: dict):
+    """This object is the main thread object. It is spawned by init()
+       and directly communicates with the display
+    """
+    # Sleep for a few seconds to let initalization of the rest of TAFY finish
+    lcd_obj.lcd_clear()
+    sleep(0.0025)
+    if not DISPLAY_MODE:
+        return
+    lcd_obj.lcd_display_string(f"{DISPLAY_MODE[1]}: {STATE[DISPLAY_MODE[1]]}", line=1, clear=True)
+    lcd_obj.lcd_display_string(f"{DISPLAY_MODE[2]}: {STATE[DISPLAY_MODE[2]]}", line=2, clear=False)
 
 # i2c bus (0 -- original Pi, 1 -- Rev 2 Pi)
 I2CBUS = 0
