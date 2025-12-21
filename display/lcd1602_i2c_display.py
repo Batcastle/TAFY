@@ -38,7 +38,7 @@ def init(config, i2c_obj, silent=False, split_thread=True):
 
     if split_thread:
         timer = machine.Timer()
-        timer.init(freq=lcd_config["refresh_rate"], mode=Timer.PERIODIC,
+        timer.init(freq=lcd_config["refresh_rate"], mode=machine.Timer.PERIODIC,
                    callback=lambda t: display_main(display, lcd_config, config))
         return timer
     return display

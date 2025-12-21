@@ -402,10 +402,14 @@ def main():
         # First up, the flywheel blaster with a mechanical pusher:
         if mech.HARDWARE_CONFIG == {"rev_switch": True, "motor": True,
                                     "solenoid": False, "fire_switch": False}:
+
+            state_changed = True
             while True:
                 if not is_safety_on(safety_pin):
-                    disp.STATE["SAFETY"] = False
-
+                    if state_changed:
+                        play_tune("safety_off", config, tunes, buzzer)
+                        state_changed = False
+                        disp.STATE["SAFETY"] = False
                     # this line is here for future enablement. This allows
                     # us to control what mode the display says we're in
                     # disp.STATE["MODE"] = None
@@ -421,7 +425,10 @@ def main():
                         mech.spin_down()
                 else:
                     # print("Trigger released")
-                    mech.spin_down()
+                    if not state_changed:
+                        play_tune("safety_on", config, tunes, buzzer)
+                        state_changed = True
+                        mech.spin_down()
                 time.sleep(0.01)
 
     else:
