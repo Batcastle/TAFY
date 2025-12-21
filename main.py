@@ -331,16 +331,10 @@ def init(config, manifest):
 
 
 def blink(sleep, led):
-  """Blink built-in LED"""
-  flop = False
-  while True:
-    if flop:
-      led.value(0)
-      flop = False
-    else:
-      led.value(1)
-      flop = True
-    time.sleep(sleep)
+    """Blink built-in LED"""
+    while True:
+        led.toggle()
+        time.sleep(sleep)
 
 
 def main():
