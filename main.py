@@ -365,27 +365,28 @@ def main():
         SmartBus_config = load_SmartBus_config()
     except Exception as error:
         print(f"FATAL SMARTBUS CONFIG ERROR: {error}")
+        play_tune("error", config, tunes, buzzer)
         blink(0.3, led)
     try:
         mech, disp, int_i2c = init(config, SmartBus_config)
     except Exception as error:
         # Fatal Error. Set the onboard LED to always on to show the error.
         print(f"FATAL DRIVER/SMARTBUS ERROR: {error}")
+        play_tune("error", config, tunes, buzzer)
         blink(0.25, led)
 
     if disp is None:
         print(f"No known working driver for display of type: {config['display_type']}")
-        blink(5, led)
-    else:
-        print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
+        play_tune("warning", config, tunes, buzzer)
+    print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
 
 
     if mech is None:
         print(f"No known working driver for firing mechanisims of type: {config['blaster_type']}")
         blink(3, led)
-    else:
-        print(f"Loaded driver for firing mechanism of type: {mech.FIRE_TYPE}")
-
+        play_tune("error", config, tunes, buzzer)
+        return
+    print(f"Loaded driver for firing mechanism of type: {mech.FIRE_TYPE}")
 
 
     # Safety low == safety on, therefore, set the safety pin to default low
