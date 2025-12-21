@@ -402,26 +402,52 @@ def main():
     if mech.HARDWARE_CONFIG["motor"]:
         # Most devices have a motor
         # First up, the flywheel blaster with a mechanical pusher:
-        if mech.HARDWARE_CONFIG == {"rev_switch": True, "motor": True, "solenoid": False, "fire_switch": False}:
-          while True:
-            if mech.spin_up_trigger_pulled():
-              # print("Trigger pulled!")
-              mech.spin_up()
-            else:
-              # print("Trigger released")
-              mech.spin_down()
-            time.sleep(0.01)
+        if mech.HARDWARE_CONFIG == {"rev_switch": True, "motor": True,
+                                    "solenoid": False, "fire_switch": False}:
+            while True:
+                if not is_safety_on(safety_pin):
+                    disp.STATE["SAFETY"] = False
+
+                    # this line is here for future enablement. This allows
+                    # us to control what mode the display says we're in
+                    # disp.STATE["MODE"] = None
+                    if mech.spin_up_trigger_pulled():
+                        # print("Trigger pulled!")
+                        mech.spin_up()
+                # Both of these else statements need to exist so we don't
+                # constantly keep turning flywheels or AEB motors on and off
+                # over and over, but also so that if the safety is suddenly
+                # turned on, then we turn the flywheels off automatically
+                    else:
+                        # print("Trigger released")
+                        mech.spin_down()
+                else:
+                    # print("Trigger released")
+                    mech.spin_down()
+                time.sleep(0.01)
 
     else:
-      # The only device without a motor is a solenoid blaster or solenoid-backed AEB
-      while True:
-        if mech.fire_trigger_pulled():
-          mech.trigger_solenoid()
-        time.sleep(0.01)
+        # The only device without a motor is a solenoid blaster or solenoid-backed AEB
+        while True:
+            if mech.fire_trigger_pulled():
+                mech.trigger_solenoid()
+            time.sleep(0.01)
 
 
 
 
+def is_safety_on(pin):
+    """Get the state of the safety pin. Low means the safety is on, High means it is off."""
+    # The reason we do the below if statements instead of just:
+    #   return (pin.value() == 0)
+    # is because if the internal pull down resistor isn't working, and we get a disconnect,
+    # we want to err on the side of caution. This may be a Nerf blaster, but
+    # we don't want anyone getting shot in the eyes.
+    if pin.value() == 0:
+        return True
+    if pin.value() == 1:
+        return False
+    return True
 
 if __name__ == "__main__":
     main()
