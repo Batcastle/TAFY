@@ -27,7 +27,8 @@ Advanced
 Foam
 Yeeter
 
-TAFY is designed to be a modular, extensible, flexible firmware for foam dart blasters written in MicroPython for the Raspberry Pi Pico 2
+TAFY is designed to be a modular, extensible, flexible firmware for
+foam dart blasters written in MicroPython for the Raspberry Pi Pico 2
 
 Features:
     - Supports multiple firing mechanisms:
@@ -41,21 +42,22 @@ Features:
     - Startup sound
     - Safety switch
     - SmartBus
-        - SmartBus is a modular, hot-swappable I2C based bus system, adding support for SmartMags, barrel extensions, and more!
+        - SmartBus is a modular, hot-swappable I2C based system
+        - adds support for SmartMags, barrel extensions, and more!
     - LED arrays
     - Updates over I2C
 
 TAFY and associated hardware files are 100% open-source and free to use!
 """
-from machine import Pin, PWM, I2C
 import time
 import json
+from machine import Pin, PWM, I2C, Timer
 import fire_mech as fm
 import display
 import SmartBus
 
 # Global variables
-VERSION = "v0.0.4-alpha0"
+VERSION = "v0.0.5-alpha0"
 
 
 def load_config():
@@ -67,7 +69,7 @@ def load_config():
         output = {
     "frequency": 0.5,
     "buzzer_pin": 25,
-    "startup_sound": true,
+    "startup_sound": True,
     "volume": 0.5,
     "blaster_type": "flywheel_mechanical",
     "display_type": "dummy",
@@ -79,8 +81,8 @@ def load_config():
     "flywheel_pwm_freq": 1000,
     "flywheel_pwm_duty": 1.0,
     "dart_capacity": 30,
-    "SmartBus_enabled": true,
-    "internal_light": true,
+    "SmartBus_enabled": True,
+    "internal_light": True,
     "Internal_SDA": 19,
     "Internal_SCL": 18,
     "Internal_freq": 400000,
@@ -246,6 +248,7 @@ def load_SmartBus_config():
 
 
 def play_tune(event, config, tunes, buzzer):
+    """Play tune over piezo or low-power speaker using PWM"""
     if event.lower() == "startup":
         try:
             tune = tunes[event][config["startup_sound"]]
@@ -290,17 +293,31 @@ def init(config, manifest):
     if config["display_type"] in display.available():
         output_display = display.load(config["display_type"])
 
-    if (config["Internal_SCL"] in config["I2C_MAP"][0]) and (config["Internal_SDA"] in config["I2C_MAP"][0]):
-      bus = 0
-    elif (config["Internal_SCL"] in config["I2C_MAP"][1]) and (config["Internal_SDA"] in config["I2C_MAP"][1]):
-      bus = 1
+    if config["Internal_SCL"] in config["I2C_MAP"][0]:
+        if config["Internal_SDA"] in config["I2C_MAP"][0]:
+            bus = 0
+    elif config["Internal_SCL"] in config["I2C_MAP"][1]:
+        if config["Internal_SDA"] in config["I2C_MAP"][1]:
+            bus = 1
     else:
-      raise Exception("INTERNAL I2C lines not on same bus")
-    int_i2c = I2C(bus, scl=Pin(config["Internal_SCL"], Pin.PULL_UP), sda=Pin(config["Internal_SDA"], Pin.PULL_UP), freq=config["Internal_freq"])
+        raise Exception("INTERNAL I2C lines not on same bus")
+    int_i2c = I2C(bus, scl=Pin(config["Internal_SCL"], Pin.PULL_UP),
+                  sda=Pin(config["Internal_SDA"], Pin.PULL_UP),
+                  freq=config["Internal_freq"])
 
     # Here, we should now run any hardware initialization code we need to.
     if output_display is not None:
-        output_display.init(config, int_i2c)
+        try:
+            output_display.init(config, int_i2c)
+        except Exception as e:
+            print(f"ERROR SETTING UP DISPLAY: {e}")
+            print("Falling back to no-display mode")
+            output_display = display.load("dummy")
+    else:
+        print("COULD NOT FIND VALID DISPLAY!")
+        print("Falling back to no-display mode")
+        output_display = display.load("dummy")
+
 
     if output_fm is not None:
         output_fm.init(config)
@@ -380,7 +397,7 @@ def main():
     # buzzer.duty_u16(0)
     # Set LED to on to show we are online
     if config["internal_light"]:
-      led.value(1)
+        led.value(1)
 
     if mech.HARDWARE_CONFIG["motor"]:
         # Most devices have a motor
