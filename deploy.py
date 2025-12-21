@@ -169,15 +169,26 @@ class MicroPythonDevice:
             return True
 
     def start_update_mode(self):
-        """Put in 'update mode' (just blinks the LED really fast to notify user update/deploy is running.)"""
+        """Put in 'update mode'"""
         code = (
-            "from machine import Pin, Timer\n"
-            "led = Pin('LED', Pin.OUT)\n"
-            "tim = Timer()\n"
-            "def tick(timer):\n"
-            "   global led\n"
-            "   led.toggle()\n"
-            "tim.init(freq=10, mode=Timer.PERIODIC, callback=tick)\n"
+            "try:\n"
+            "    import main\n"
+            "    main.update()\n"
+            "except:\n"
+            "    from machine import Pin, Timer\n"
+            "    led = Pin('LED', Pin.OUT)\n"
+            "    tim = Timer()\n"
+            "    def tick(timer):\n"
+            "        global led\n"
+            "        led.toggle()\n"
+            "    tim.init(freq=10, mode=Timer.PERIODIC, callback=tick)\n"
+        )
+        self.exec_raw(code)
+
+    def update_complete(self):
+        code = (
+            "import main\n"
+            "main.update(completed=True)\n"
         )
         self.exec_raw(code)
 
@@ -383,6 +394,7 @@ def main():
 
     finally:
         print("Exiting raw REPL and closing serial...")
+        dev.update_complete()
         try:
             dev.exit_raw_repl()
         except:

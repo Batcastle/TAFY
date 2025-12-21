@@ -460,5 +460,57 @@ def is_safety_on(pin):
         return False
     return True
 
+
+def update(completed=False):
+    """This function is only to be called when an update is being started or done."""
+    led = Pin('LED', Pin.OUT)
+    try:
+        config = load_config()
+    except Exception as error:
+        print(f"FATAL CONFIG ERROR: {error}")
+        blink(1, led)
+
+    buzzer = PWM(Pin(config["buzzer_pin"]))
+
+    try:
+        tunes = load_tunes()
+    except Exception as error:
+        print(f"FATAL TUNE CONFIG ERROR: {error}")
+        blink(0.5, led)
+
+    if not completed:
+        def timer(tick):
+            led.toggle()
+
+        tim = Timer()
+        tim.init(freq=10, mode=Timer.PERIODIC, callback=timer)
+    else:
+        led.value(1)
+        play_tune("update_complete", config, tunes, buzzer)
+        print("UPDATE COMPLETE!")
+        if config["display_type"] in display.available():
+            output_display = display.load(config["display_type"])
+
+        if config["Internal_SCL"] in config["I2C_MAP"][0]:
+            if config["Internal_SDA"] in config["I2C_MAP"][0]:
+                bus = 0
+        elif config["Internal_SCL"] in config["I2C_MAP"][1]:
+            if config["Internal_SDA"] in config["I2C_MAP"][1]:
+                bus = 1
+        else:
+            raise Exception("INTERNAL I2C lines not on same bus")
+        int_i2c = I2C(bus, scl=Pin(config["Internal_SCL"], Pin.PULL_UP),
+                      sda=Pin(config["Internal_SDA"], Pin.PULL_UP),
+                      freq=config["Internal_freq"])
+
+        # Here, we should now run any hardware initialization code we need to.
+        disp = None
+        if output_display is not None:
+            disp = output_display.init(config, int_i2c, silent=True, split_thread=False)
+
+        if "display_string" in dir(disp):
+            disp.display_string("Update Complete!")
+
+
 if __name__ == "__main__":
     main()
