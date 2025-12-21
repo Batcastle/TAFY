@@ -351,15 +351,15 @@ def main():
 
             exists_remote = dev.file_exists(remote_path)
 
-            if exists_remote:
-                if args.overwrite:
-                    print(f"    [WARN] Remote file '{remote_path}' exists and will be overwritten (forced by --overwrite).")
-                else:
-                    if not prompt_overwrite(remote_path):
-                        print("    [SKIP] User chose not to overwrite.\n")
-                        continue
-            else:
-                print(f"    [INFO] Remote file '{remote_path}' does not exist; will upload.")
+            # if exists_remote:
+            #     if args.overwrite:
+            #         print(f"    [WARN] Remote file '{remote_path}' exists and will be overwritten (forced by --overwrite).")
+            #     else:
+            #         if not prompt_overwrite(remote_path):
+            #             print("    [SKIP] User chose not to overwrite.\n")
+            #             continue
+            # else:
+            #     print(f"    [INFO] Remote file '{remote_path}' does not exist; will upload.")
 
             # Ensure directories exist on device
             remote_dir = remote_path.rsplit("/", 1)[0] if "/" in remote_path else ""
