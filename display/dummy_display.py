@@ -28,39 +28,45 @@ It also serves as a template to start from to write new display drivers
 # Always make sure to set a display type string. This is useful for debugging.
 DISPLAY_TYPE = "DUMMY"
 
-# This variable stores the thread object, in case the main thread needs to interact with it in some weird way
-THREAD_OBJ = None
-
-STATE = {"SAFETY": True,
-         "CAPACITY": 0,
-         "STATUS": "GOOD",
+STATE = {"CAPACITY": 0,
          "MODE":  "SAFE",
-         "BATTERY": None}
+         "BATTERY": None,
+         "DIRTY": True}
 
-DISPLAY_MODE = {1: "STATUS",
-                2: "MODE"}
+DISPLAY_MODE = 0
 
-def init(config: dict, i2c_bus) -> None:
+def init(_, __, silent=False, split_thread=True):
     """
-    Under normal circumstances, this function would serve to initalize any displays, be it over UART, I2C, GPIO, or something else.
+    Under normal circumstances, this function would serve to initalize any displays,
+    be it over UART, I2C, GPIO, or something else.
 
-    Here, since there is no display to initalize, we do nothing. Config must still be passed to adhear to the display driver ABI.
+    Here, since there is no display to initalize, we do nothing.
+    Config must still be passed to adhear to the display driver ABI.
 
-    It should initalize a second, background process that runs and pushes updates to the display for the main process. There should
-    also be a variable shared between the two processes, behind a lock, that is used to send updates to the display. The background process
-    should not send data back to the main thread as it will be ignored.
+    It should initalize a second, background process that runs and pushes updates
+    to the display for the main process. There should also be a variable shared between
+    the two processes, behind a lock, that is used to send updates to the display.
+    The background process should not send data back to the main thread as it will be ignored.
 
-    This function should also avoid actually returning anything, and instead keep it's work internal.
+    This function should also avoid actually returning anything,
+    and instead keep it's work internal.
     """
-    print("initalizing dummy display!")
-    pass
+    if not silent:
+        print("initalizing dummy display!")
+    if split_thread:
+        return display_main
 
 
-def write(data):
+def display_main(_: dict) -> None:
+    """Place holder for the background thread to call and update the display.
+     Since this does nothing, just pass
+    """
+
+
+def write(_):
     """
     Under normal circumstances, this function would serve to push updates to any displays.
 
-    It would, ideally, use a lock to update a variable stored between processes, which allows the background process to receive
-    data it would use to update the actual display.
+    It would, ideally, use a lock to update a variable stored between processes,
+    which allows the background process to receive data it would use to update the actual display.
     """
-    pass

@@ -1,26 +1,29 @@
 import json
 from time import sleep
-import machine
+import _thread
 
 DISPLAY_TYPE = "LCD1602 - I2C"
 
-STATE = {"SAFETY": True,
-         "CAPACITY": 0,
-         "STATUS": "GOOD",
+STATE = {"CAPACITY": 0,
          "MODE":  "SAFE",
-         "BATTERY": None}
+         "BATTERY": None,
+         "DIRTY": True}
 
-DISPLAY_MODE = {1: "STATUS",
-                2: "MODE"}
+DISPLAY_MODE = 0
 
+LCD_OBJ = None
+LCD_CONFIG = None
 
 def init(config, i2c_obj, silent=False, split_thread=True):
     """Initalize 7 segment display, determine type and load necessary driver"""
+    global LCD_OBJ, LCD_CONFIG
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
     addr = None
     with open("config/lcd1602_i2c.json", "r") as file:
         lcd_config = json.load(file)
+
+    LCD_CONFIG = lcd_config
 
     for each in results:
         if str(each) in lcd_config["supported"]:
@@ -36,25 +39,31 @@ def init(config, i2c_obj, silent=False, split_thread=True):
         display.lcd_display_string("Welcome to TAFY!", line=1, clear=True)
         display.lcd_display_string(config['VERSION'], line=2, clear=False)
 
+    LCD_OBJ = display
+
     if split_thread:
-        timer = machine.Timer()
-        timer.init(freq=lcd_config["refresh_rate"], mode=machine.Timer.PERIODIC,
-                   callback=lambda t: display_main(display, lcd_config, config))
-        return timer
+        return display_main
     return display
 
 
-def display_main(lcd_obj, lcd_config: dict, global_config: dict):
-    """This object is the main thread object. It is spawned by init()
-       and directly communicates with the display
+def display_main(global_config: dict):
+    """This object is the main thread object. It is spawned by the background
+       process and directly communicates with the display
     """
     # Sleep for a few seconds to let initalization of the rest of TAFY finish
-    lcd_obj.lcd_clear()
-    sleep(0.0025)
-    if not DISPLAY_MODE:
+    global STATE, LCD_OBJ, LCD_CONFIG
+    sleep(4)
+    LCD_OBJ.lcd_clear()
+    if DISPLAY_MODE is None:
         return
-    lcd_obj.lcd_display_string(f"{DISPLAY_MODE[1]}: {STATE[DISPLAY_MODE[1]]}", line=1, clear=True)
-    lcd_obj.lcd_display_string(f"{DISPLAY_MODE[2]}: {STATE[DISPLAY_MODE[2]]}", line=2, clear=False)
+    lock = _thread.allocate_lock()
+    with lock:
+        if STATE["DIRTY"]:
+            mode = LCD_CONFIG["display_modes"][DISPLAY_MODE]
+            LCD_OBJ.lcd_display_string(f"{mode["1"]}: {STATE[mode["1"]]}", line=1, clear=True)
+            LCD_OBJ.lcd_display_string(f"{mode["2"]}: {STATE[mode["2"]]}", line=2, clear=False)
+            STATE["DIRTY"] = False
+
 
 # i2c bus (0 -- original Pi, 1 -- Rev 2 Pi)
 I2CBUS = 0

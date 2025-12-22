@@ -1,5 +1,18 @@
 {
     "supported": ["39", "63"],
     "backlight_active_high": true,
-    "refresh_rate": 1
+    "display_modes": [
+        {
+            "1": "CAPACITY",
+            "2": "MODE"
+        },
+        {
+            "1": "MODE",
+            "2": "BATTERY"
+        },
+        {
+            "1": "BATTERY",
+            "2": "CAPACITY"
+        }
+    ]
 }

@@ -51,6 +51,7 @@ TAFY and associated hardware files are 100% open-source and free to use!
 """
 import time
 import json
+import _thread
 from machine import Pin, PWM, I2C, Timer
 import fire_mech as fm
 import display
@@ -65,7 +66,7 @@ def load_config():
     try:
         with open("config/main.json", "r") as file:
             output = json.load(file)
-    except:
+    except (json.JSONDecodeError, OSError):
         output = {
     "frequency": 0.5,
     "buzzer_pin": 25,
@@ -106,7 +107,7 @@ def load_tunes():
     try:
         with open("config/tunes.json", "r") as file:
             output = json.load(file)
-    except:
+    except (json.JSONDecodeError, OSError):
         output = {
   "startup": {
     "nerf_arming_v1": {
@@ -168,7 +169,7 @@ def load_SmartBus_config():
     try:
         with open("config/SmartBus_Manifest.json", "r") as file:
             output = json.load(file)
-    except:
+    except (json.JSONDecodeError, OSError):
         output = {
   "smartbus": {
     "devices": [
@@ -306,18 +307,23 @@ def init(config, manifest):
                   freq=config["Internal_freq"])
 
     # Here, we should now run any hardware initialization code we need to.
+    disp = None
     if output_display is not None:
         try:
-            output_display.init(config, int_i2c)
+            disp = output_display.init(config, int_i2c)
         except Exception as e:
             print(f"ERROR SETTING UP DISPLAY: {e}")
             print("Falling back to no-display mode")
             output_display = display.load("dummy")
+            disp = output_display.init(config, int_i2c)
     else:
         print("COULD NOT FIND VALID DISPLAY!")
         print("Falling back to no-display mode")
         output_display = display.load("dummy")
+        disp = output_display.init(config, int_i2c)
 
+
+    _thread.start_new_thread(background_process, ([disp], config))
 
     if output_fm is not None:
         output_fm.init(config)
@@ -369,11 +375,7 @@ def main():
         play_tune("error", config, tunes, buzzer)
         blink(0.25, led)
 
-    if disp is None:
-        print(f"No known working driver for display of type: {config['display_type']}")
-        play_tune("warning", config, tunes, buzzer)
     print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
-
 
     if mech is None:
         print(f"No known working driver for firing mechanisims of type: {config['blaster_type']}")
@@ -397,6 +399,8 @@ def main():
     if config["internal_light"]:
         led.value(1)
 
+
+    lock = _thread.allocate_lock()
     if mech.HARDWARE_CONFIG["motor"]:
         # Most devices have a motor
         # First up, the flywheel blaster with a mechanical pusher:
@@ -409,7 +413,9 @@ def main():
                     if state_changed:
                         play_tune("safety_off", config, tunes, buzzer)
                         state_changed = False
-                        disp.STATE["SAFETY"] = False
+                        with lock:
+                            disp.STATE["SAFETY"] = False
+                            disp.STATE["DIRTY"] = True
                     # this line is here for future enablement. This allows
                     # us to control what mode the display says we're in
                     # disp.STATE["MODE"] = None
@@ -429,6 +435,9 @@ def main():
                         play_tune("safety_on", config, tunes, buzzer)
                         state_changed = True
                         mech.spin_down()
+                        with lock:
+                            disp.STATE["SAFETY"] = True
+                            disp.STATE["DIRTY"] = True
                 time.sleep(0.01)
 
     else:
@@ -437,6 +446,22 @@ def main():
             if mech.fire_trigger_pulled():
                 mech.trigger_solenoid()
             time.sleep(0.01)
+
+
+def background_process(funcs: list, config: dict) -> None:
+    """Main background process"""
+    count = 0
+    for each in funcs:
+        if each is None:
+            count += 1
+    if count == len(funcs):
+        print("No functions to run! Closing background thread!")
+        return
+    while True:
+        for each in funcs:
+            each(config)
+            time.sleep(0.01)
+        time.sleep(0.01)
 
 
 # This functions are not to run continuously. Other operations must be performed in the main loop
@@ -486,7 +511,7 @@ def update(completed=False):
         blink(0.5, led)
 
     if not completed:
-        def timer(tick):
+        def timer(_):
             led.toggle()
 
         tim = Timer()
