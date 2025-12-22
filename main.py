@@ -457,6 +457,8 @@ def background_process(funcs: list, config: dict) -> None:
     if count == len(funcs):
         print("No functions to run! Closing background thread!")
         return
+    # Wait 4 seconds to let the rest of the system start up.
+    time.sleep(4)
     while True:
         for each in funcs:
             each(config)

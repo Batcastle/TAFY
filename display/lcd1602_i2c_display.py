@@ -52,13 +52,12 @@ def display_main(global_config: dict):
     """
     # Sleep for a few seconds to let initalization of the rest of TAFY finish
     global STATE, LCD_OBJ, LCD_CONFIG
-    sleep(4)
-    LCD_OBJ.lcd_clear()
     if DISPLAY_MODE is None:
         return
     lock = _thread.allocate_lock()
     with lock:
         if STATE["DIRTY"]:
+            LCD_OBJ.lcd_clear()
             mode = LCD_CONFIG["display_modes"][DISPLAY_MODE]
             LCD_OBJ.lcd_display_string(f"{mode["1"]}: {STATE[mode["1"]]}", line=1, clear=True)
             LCD_OBJ.lcd_display_string(f"{mode["2"]}: {STATE[mode["2"]]}", line=2, clear=False)
