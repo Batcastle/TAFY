@@ -1,0 +1,18 @@
+{
+    "mode_single": 7,
+    "mode_burst": 8,
+    "mode_auto": 9,
+    "flywheel_pwm_pin": 12,
+    "safety_pin": 13,
+    "flywheel_rev_pin":14,
+    "buzzer_pin": 15,
+    "Internal_SDA": 16,
+    "Internal_SCL": 17,
+    "SmartBus_SDA": 18,
+    "SmartBus_SCL": 19,
+    "SmartBus_ID_Downstream": 26,
+    "SmartBus_ID_Upstream": 27,
+    "I2C_MAP": { "0": [0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21],
+                "1": [2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 26, 27]
+                }
+}

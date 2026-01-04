@@ -2,7 +2,7 @@
 #
 #  dummy_display.py
 #
-#  Copyright 2025 Thomas Castleman <batcastle@draugeros.org>
+#  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ STATE = {"CAPACITY": 0,
 
 DISPLAY_MODE = 0
 
-def init(_, __, silent=False, split_thread=True):
+def init(_, __, ___, silent=False, split_thread=True):
     """
     Under normal circumstances, this function would serve to initalize any displays,
     be it over UART, I2C, GPIO, or something else.
@@ -57,7 +57,7 @@ def init(_, __, silent=False, split_thread=True):
         return display_main
 
 
-def display_main(_: dict) -> None:
+def display_main(_: dict, __: dict) -> None:
     """Place holder for the background thread to call and update the display.
      Since this does nothing, just pass
     """

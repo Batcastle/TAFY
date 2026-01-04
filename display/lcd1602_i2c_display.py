@@ -1,6 +1,28 @@
-import json
+# -*- coding: utf-8 -*-
+#
+#  lcd1602_i2c_display.py
+#
+#  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+"""
+This file provides a display driver for blasters with the LCD1602 display over I2C
+"""
 from time import sleep
-import _thread
 
 DISPLAY_TYPE = "LCD1602 - I2C"
 
@@ -14,30 +36,28 @@ DISPLAY_MODE = 0
 LCD_OBJ = None
 LCD_CONFIG = None
 
-def init(config, i2c_obj, silent=False, split_thread=True):
+def init(config, i2c_obj, locks, silent=False, split_thread=True):
     """Initalize 7 segment display, determine type and load necessary driver"""
     global LCD_OBJ, LCD_CONFIG
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
     addr = None
-    with open("config/lcd1602_i2c.json", "r") as file:
-        lcd_config = json.load(file)
-
-    LCD_CONFIG = lcd_config
+    LCD_CONFIG = config.get_section("lcd1602_i2c")
 
     for each in results:
-        if str(each) in lcd_config["supported"]:
+        if str(each) in LCD_CONFIG["supported"]:
             addr = each
             break
 
     if addr is None:
         raise Exception("Device LCD1602 - I2C not found at any supported address.")
 
-    display = LCD(addr, i2c_obj)
-    display.active_high_backlight = lcd_config["backlight_active_high"]
-    if not silent:
-        display.lcd_display_string("Welcome to TAFY!", line=1, clear=True)
-        display.lcd_display_string(config['VERSION'], line=2, clear=False)
+    with locks["i2c_int"]:
+        display = LCD(addr, i2c_obj)
+        display.active_high_backlight = LCD_CONFIG["backlight_active_high"]
+        if not silent:
+            display.lcd_display_string("Welcome to TAFY!", line=1, clear=True)
+            display.lcd_display_string(config.VERSION, line=2, clear=False)
 
     LCD_OBJ = display
 
@@ -46,21 +66,35 @@ def init(config, i2c_obj, silent=False, split_thread=True):
     return display
 
 
-def display_main(global_config: dict):
+def display_main(_, locks: dict):
     """This object is the main thread object. It is spawned by the background
        process and directly communicates with the display
     """
     # Sleep for a few seconds to let initalization of the rest of TAFY finish
     global STATE, LCD_OBJ, LCD_CONFIG
-    if DISPLAY_MODE is None:
-        return
-    lock = _thread.allocate_lock()
-    with lock:
-        if STATE["DIRTY"]:
-            LCD_OBJ.lcd_clear()
+    flag = False
+    mode = None
+    with locks["state"]:
+        if DISPLAY_MODE is None:
+            flag = True
+        else:
             mode = LCD_CONFIG["display_modes"][DISPLAY_MODE]
-            LCD_OBJ.lcd_display_string(f"{mode["1"]}: {STATE[mode["1"]]}", line=1, clear=True)
-            LCD_OBJ.lcd_display_string(f"{mode["2"]}: {STATE[mode["2"]]}", line=2, clear=False)
+
+    if flag:
+        return
+
+    flag = False
+    with locks["state"]:
+        if STATE["DIRTY"]:
+            disp_buffer = [f"{mode["1"]}: {STATE[mode["1"]]}", f"{mode["2"]}: {STATE[mode["2"]]}"]
+            flag = True
+
+    if flag:
+        with locks["i2c_int"]:
+            LCD_OBJ.lcd_clear()
+            LCD_OBJ.lcd_display_string(disp_buffer[0], line=1, clear=True)
+            LCD_OBJ.lcd_display_string(disp_buffer[1], line=2, clear=False)
+        with locks["state"]:
             STATE["DIRTY"] = False
 
 

@@ -2,7 +2,7 @@
 #
 #  flywheel_mechanical_fire.py
 #
-#  Copyright 2025 Thomas Castleman <batcastle@draugeros.org>
+#  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -117,25 +117,26 @@ def init(config):
     This function should also avoid actually returning anything, and instead keep it's work internal.
     """
     print("initalizing flywheel/mechanical fire mechanism!")
-    if "flywheel_pwm_pin" in config:
-        INTERNAL_CONFIG["PWM_PIN"][0] = config["flywheel_pwm_pin"]
-    if "flywheel_pwm_freq" in config:
-        PWM_FREQ = config["flywheel_pwm_freq"]
-    if "flywheel_pwm_duty" in config:
-        if config["flywheel_pwm_duty"] > 1:
-            config["flywheel_pwm_duty"] = 1
-        elif config["flywheel_pwm_duty"] < 0:
-            config["flywheel_pwm_duty"] = 0
-        INTERNAL_CONFIG["PWM_DUTY"] = config["flywheel_pwm_duty"]
+    if "flywheel_pwm_pin" in config.get_section("pin_out"):
+        INTERNAL_CONFIG["PWM_PIN"][0] = config.get("pin_out", "flywheel_pwm_pin")
+    if "flywheel_pwm_freq" in config.get_section("main"):
+        PWM_FREQ = config.get("main", "flywheel_pwm_freq")
+    if "flywheel_pwm_duty" in config.get_section("main"):
+        duty = config.get("main", "flywheel_pwm_duty")
+        if duty > 1:
+            duty = 1
+        elif duty < 0:
+            duty = 0
+        INTERNAL_CONFIG["PWM_DUTY"] = duty
 
     INTERNAL_CONFIG["PWM_PIN"][1] = PWM(Pin(INTERNAL_CONFIG["PWM_PIN"][0]))
     INTERNAL_CONFIG["PWM_PIN"][1].freq(PWM_FREQ)
 
-    if "flywheel_rev_pin" in config:
-        INTERNAL_CONFIG["REV_PIN"][0] = config["flywheel_rev_pin"]
+    if "flywheel_rev_pin" in config.get_section("pin_out"):
+        INTERNAL_CONFIG["REV_PIN"][0] = config.get("pin_out", "flywheel_rev_pin")
 
-    if "flywheel_rev_pin_normal" in config:
-        INTERNAL_CONFIG["REV_PIN_NORMAL"] = config["flywheel_rev_pin_normal"]
+    if "flywheel_rev_pin_normal" in config.get_section("main"):
+        INTERNAL_CONFIG["REV_PIN_NORMAL"] = config.get("main", "flywheel_rev_pin_normal")
     if INTERNAL_CONFIG["REV_PIN_NORMAL"] == 0:
         normal = Pin.PULL_DOWN
     elif INTERNAL_CONFIG["REV_PIN_NORMAL"] == 1:
