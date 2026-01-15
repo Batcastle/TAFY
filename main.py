@@ -150,7 +150,7 @@ def init(local_config):
 
 
     if output_fm is not None:
-        output_fm.init(local_config)
+        output_fm = output_fm.FireMechanism(local_config)
 
     background_procs = [disp]
     procs = SmartBus.init(local_config, locks)
@@ -219,50 +219,67 @@ def main():
     if CONFIG.get("main", "internal_light"):
         led.value(1)
 
-    prev_mode = None
-    if mech.HARDWARE_CONFIG["motor"]:
-        # Most devices have a motor
-        # First up, the flywheel blaster with a mechanical pusher:
-        if mech.HARDWARE_CONFIG == {"rev_switch": True, "motor": True,
-                                    "solenoid": False, "fire_switch": False}:
 
+    # Main fire loop
+    internal_state = {"SHOTS_FIRED": 0,
+                      "MAX_SHOTS": 0}
 
-            while True:
-                mode = get_mode(mode_switch)
+    previous_mode = get_mode(pins)
+    current_mode = get_mode(pins)
+    with locks["state"]:
+        disp.STATE["MODE"] = current_mode
+        disp.STATE["DIRTY"] = True
+    while True:
+        # Notify user of mode change, update display and play sound
+        if previous_mode != current_mode:
+            with locks["state"]:
+                disp.STATE["MODE"] = current_mode
+                disp.STATE["DIRTY"] = True
+            if previous_mode == "SAFE":
+                play_tune("safety_off", CONFIG, buzzer)
+            elif current_mode == "SAFE":
+                play_tune("safety_on", CONFIG, buzzer)
+            else:
+                play_tune("mode_changed", CONFIG, buzzer)
+            previous_mode = current_mode
 
-                if mode == "SAFE":
-                    if prev_mode != mode:
-                        play_tune("safety_on", CONFIG, buzzer)
-                        mech.spin_down()
-                        with locks["state"]:
-                            disp.STATE["MODE"] = "SAFE"
-                            disp.STATE["DIRTY"] = True
-                        prev_mode = mode
+        # Handle current mode
+        if current_mode == "SINGLE":
+            internal_state["MAX_SHOTS"] = 1
+        elif current_mode == "BURST":
+            internal_state["MAX_SHOTS"] = CONFIG.get("main", "burst_mode_shots")
+        elif current_mode == "AUTO":
+            internal_state["MAX_SHOTS"] = -1
 
+        # Fire as necessary
+        if current_mode != "SAFE":
+            # Not all blasters are flywheels.
+            # As such, only flywheelers have rev triggers
+            if mech.HARDWARE_CONFIG["rev_switch"]:
+                if mech.rev_trigger_pulled():
+                    mech.spin_up()
                 else:
-                    if prev_mode != mode:
-                        if prev_mode == "SAFE":
-                            play_tune("safety_off", CONFIG, buzzer)
-                        else:
-                            play_tune("mode_changed", CONFIG, buzzer)
-                        with locks["state"]:
-                            disp.STATE["MODE"] = mode
-                            disp.STATE["DIRTY"] = True
-                        prev_mode = mode
-                        # this line is here for future enablement. This allows
-                        # us to control what mode the display says we're in
-                        if mech.spin_up_trigger_pulled():
-                            mech.spin_up()
+                    mech.spin_down()
+
+            # Most blasters where it makes sense to have TAFY give access to triggers.
+            # So, we go ahead and call this. If a blaster has TAFY but no access to triggers,
+            # This function should always return False
+            if mech.fire_trigger_pulled():
+                fire_handler(mech, disp, locks, internal_state)
+            else:
+                internal_state["SHOTS_FIRED"] = 0
+        else:
+            internal_state["SHOTS_FIRED"] = 0
+
+        # Sleep for a little so we don't overwhelm the processor
+        time.sleep(0.05)
+
+        # Update mode
+        current_mode = get_mode(pins)
 
         if CONFIG.get("main", "mode").lower() == "debug":
             micropython.mem_info()
 
-    else:
-        # The only device without a motor is a solenoid blaster or solenoid-backed AEB
-        while True:
-            if mech.fire_trigger_pulled():
-                mech.trigger_solenoid()
-            time.sleep(0.01)
 
 
 def background_process(funcs: list, local_config: dict, locks: dict) -> None:
@@ -283,37 +300,60 @@ def background_process(funcs: list, local_config: dict, locks: dict) -> None:
         time.sleep(0.01)
 
 
-# This functions are not to run continuously. Other operations must be performed in the main loop
-# Further, these functions DO NOT CHECK THE SAFETY. That is done in the main loop.
-# In fact, none of these should interact with pins directly, but instead use the helper functions.
-def single_shot():
-    pass
+def fire_handler(mech, disp, locks, state):
+    """Handle firing for all fire modes"""
+    # Stop firing at whatever necessary for fire mode
+    if state["MAX_SHOTS"] != -1:
+        if state["SHOTS_FIRED"] >= state["MAX_SHOTS"]:
+            return
+
+    mech.fire()
+    with locks["state"]:
+        if disp.STATE["CAPACITY"] > 0:
+            disp.STATE["CAPACITY"] -= 1
+            disp.STATE["DIRTY"] = True
+    state["SHOTS_FIRED"] += 1
 
 
-def burst_shot():
-    pass
+def get_mode(mode_pins: dict) -> str:
+    """Get current fire mode"""
+    # 1. Read all states ONCE to save time and ensure consistency
+    is_safe   = get_pin_value(mode_pins["SAFE"])
+    is_single = get_pin_value(mode_pins["SINGLE"])
+    is_burst  = get_pin_value(mode_pins["BURST"])
+    is_auto   = get_pin_value(mode_pins["AUTO"])
 
-
-def full_auto():
-    pass
-
-
-def get_mode(mode_pins) -> str:
-    """Get current mode. If no pins or more than one pin are pulled high, default to safe."""
-    # If safe is pulled high, nothing else matters, we're safe.
-    if mode_pins["SAFE"].value():
+    # 2. Logic Check
+    if is_safe:
         return "SAFE"
 
-    if mode_pins["SINGLE"].value() and not mode_pins["BURST"].value() and not mode_pins["AUTO"].value():
+    # Check for exactly one pin being high
+    if is_single and not is_burst and not is_auto:
         return "SINGLE"
 
-    if mode_pins["BURST"].value() and not mode_pins["SINGLE"].value() and not mode_pins["AUTO"].value():
+    if is_burst and not is_single and not is_auto:
         return "BURST"
 
-    if mode_pins["AUTO"].value() and not mode_pins["BURST"].value() and not mode_pins["SINGLE"].value():
+    if is_auto and not is_single and not is_burst:
         return "AUTO"
 
+    # Default if multiple pins are high or none are high
     return "SAFE"
+
+
+def get_pin_value(pin) -> bool:
+    """Get a debounced value for given pin"""
+    count = 5
+    status = {True: 0, False: 0}
+    for _ in range(count):
+        if pin.value() == 1:
+            status[True] += 1
+        else:
+            status[False] += 1
+        time.sleep(0.002)
+    if status[True] > status[False]:
+        return True
+    return False
 
 
 def update(completed=False):

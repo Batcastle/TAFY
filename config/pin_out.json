@@ -2,6 +2,8 @@
     "mode_single": 7,
     "mode_burst": 8,
     "mode_auto": 9,
+    "solenoid_pin": 10,
+    "trigger_pin": 11,
     "flywheel_pwm_pin": 12,
     "safety_pin": 13,
     "flywheel_rev_pin":14,
