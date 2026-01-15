@@ -20,185 +20,78 @@
 #  MA 02110-1301, USA.
 #
 """
-This file provides a basic driver, designed for blasters with electric flywheels but mechanical pushers
+This file provides a basic driver, designed for blasters with
+electric flywheels but mechanical pushers
 
 It also serves as a template to start from to write new fire mechanism drivers
 """
-from machine import Pin, PWM
 import time
+from machine import Pin, PWM
+import fire_mech.base
 
 
-# Always make sure to set a fire mechanism type string. This is useful for debugging.
-FIRE_TYPE = "flywheel_mechanical"
-
-
-# This is the internal config. It will not be interacted with by the main function
-# The first entry in each list is the pin number for each needed pin, the second pin
-# is the object needed to interact with that pin
-# The pin numbers provided here are intended to be the defaults. If the setting in the provided config
-# does not work, makes no sense, or the settings does not exist, these are your fall backs.
-INTERNAL_CONFIG = {
-        "PWM_PIN": [0, None],
-        "REV_PIN": [2, None],
-        "REV_PIN_NORMAL": 0,
-        "PWM_DUTY": 1.0
-    }
-
-# Default PWM frequency
-PWM_FREQ = 1000
-
-"""This configuration will be READ by main, but not changed.
-They tell main what motors we have and what triggers we have, so it knows what to check and move.
-if:
-    {
-        "rev_switch": True,
-        "motor": True,
-        "solenoid": False,
-        "fire_switch": False
-    }
-Rev switch controls motor. This is a flywheel blaster with mechanical pusher
-
-if:
-    {
-        "rev_switch": True,
-        "motor": True,
-        "solenoid": True,
-        "fire_switch": True
-    }
-rev switch controls motor, fire switch controls solenoid. This is a fully electric flywheel blaster
-
-if:
-    {
-        "rev_switch": False,
-        "motor": True,
-        "solenoid": True,
-        "fire_switch": True
-    }
-The fire switch controls both. Expect a short delay before firing begins, and a short delay before the flywheel spins down.
-This is fully electric flywheel blaster, with a simpler, cheaper design.
-
-if:
-    {
-        "rev_switch": False,
-        "motor": True,
-        "solenoid": False,
-        "fire_switch": True
-    }
-The fire switch controls the motor, this is an AEB.
-
-if:
-    {
-        "rev_switch": False,
-        "motor": False,
-        "solenoid": True,
-        "fire_switch": True
-    }
-The fire switch controls the solenoid. This is essentially either a solenoid-backed AEB, or a solenoid blaster.
-
-**The user must have at least *ONE* switch and *ONE* of either a motor or solenoid.
-"""
-HARDWARE_CONFIG = {
-        "rev_switch": True,
-        "motor": True,
-        "solenoid": False,
-        "fire_switch": False
-    }
-
-
-def init(config):
-    """
-    This function would serves to initalize any necessary hardware. In this case, we are setting up a pin for PWM
-
-    Here, since we need to simply set up 2 pins: one for a simple switch, and the other for PWM control of the flywheels
-
-    Fire control is handled in the main thread. Any function should be quick to run in order to return control to the
-    main function.
-
-    This function should also avoid actually returning anything, and instead keep it's work internal.
-    """
-    print("initalizing flywheel/mechanical fire mechanism!")
-    if "flywheel_pwm_pin" in config.get_section("pin_out"):
-        INTERNAL_CONFIG["PWM_PIN"][0] = config.get("pin_out", "flywheel_pwm_pin")
-    if "flywheel_pwm_freq" in config.get_section("main"):
-        PWM_FREQ = config.get("main", "flywheel_pwm_freq")
-    if "flywheel_pwm_duty" in config.get_section("main"):
-        duty = config.get("main", "flywheel_pwm_duty")
-        if duty > 1:
-            duty = 1
-        elif duty < 0:
-            duty = 0
-        INTERNAL_CONFIG["PWM_DUTY"] = duty
-
-    INTERNAL_CONFIG["PWM_PIN"][1] = PWM(Pin(INTERNAL_CONFIG["PWM_PIN"][0]))
-    INTERNAL_CONFIG["PWM_PIN"][1].freq(PWM_FREQ)
-
-    if "flywheel_rev_pin" in config.get_section("pin_out"):
-        INTERNAL_CONFIG["REV_PIN"][0] = config.get("pin_out", "flywheel_rev_pin")
-
-    if "flywheel_rev_pin_normal" in config.get_section("main"):
-        INTERNAL_CONFIG["REV_PIN_NORMAL"] = config.get("main", "flywheel_rev_pin_normal")
-    if INTERNAL_CONFIG["REV_PIN_NORMAL"] == 0:
-        normal = Pin.PULL_DOWN
-    elif INTERNAL_CONFIG["REV_PIN_NORMAL"] == 1:
-        normal = Pin.PULL_UP
-    else:
-        normal = Pin.PULL_DOWN
-
-    INTERNAL_CONFIG["REV_PIN"][1] = Pin(INTERNAL_CONFIG["REV_PIN"][0], Pin.IN, normal)
+class FireMechanism(fire_mech.base.FireMechanism):
+    """Fire Mechanism object for flywheel blasters with mechanical pushers"""
+    def __init__(self, config: dict):
+        super().__init__(config)
+        print("initalizing flywheel/mechanical fire mechanism!")
+        if "flywheel_pwm_pin" in self.config.get_section("pin_out"):
+            self.INTERNAL_CONFIG["PWM_PIN"][0] = self.config.get("pin_out", "flywheel_pwm_pin")
+        if "flywheel_pwm_freq" in config.get_section("main"):
+            self.PWM_FREQ = self.config.get("main", "flywheel_pwm_freq")
+        if "flywheel_pwm_duty" in self.config.get_section("main"):
+            duty = self.config.get("main", "flywheel_pwm_duty")
+            if duty > 1:
+                duty = 1
+            elif duty < 0:
+                duty = 0
+            self.INTERNAL_CONFIG["PWM_DUTY"] = duty
 
 
 
+        if "flywheel_rev_pin" in self.config.get_section("pin_out"):
+            self.INTERNAL_CONFIG["REV_PIN"][0] = self.config.get("pin_out", "flywheel_rev_pin")
 
-def fire_trigger_pulled():
-    """
-    Simple function to check if the firing trigger has been pulled. Config will determine if it will pull a pin down or up.
+        if "flywheel_rev_pin_normal" in self.config.get_section("main"):
+            self.INTERNAL_CONFIG["REV_PIN_NORMAL"] = self.config.get("main",
+                                                                     "flywheel_rev_pin_normal")
+        if self.INTERNAL_CONFIG["REV_PIN_NORMAL"] == 0:
+            normal = Pin.PULL_DOWN
+        elif self.INTERNAL_CONFIG["REV_PIN_NORMAL"] == 1:
+            normal = Pin.PULL_UP
+        else:
+            normal = Pin.PULL_DOWN
 
-    This function is for the firing trigger. As this form of flywheel has a mechanically operated pusher instead of a solenoid, we leave this empty.
-    """
-    pass
+        self.INTERNAL_CONFIG["REV_PIN"][1] = Pin(self.INTERNAL_CONFIG["REV_PIN"][0], Pin.IN, normal)
+        self.INTERNAL_CONFIG["PWM_PIN"][1] = PWM(Pin(self.INTERNAL_CONFIG["PWM_PIN"][0]))
+        self.INTERNAL_CONFIG["PWM_PIN"][1].freq(self.PWM_FREQ)
 
+        self.FIRE_TYPE = "flywheel_mechanical"
+        self.INTERNAL_CONFIG = {
+            "PWM_PIN": [0, None],
+            "REV_PIN": [2, None],
+            "REV_PIN_NORMAL": 0,
+            "PWM_DUTY": 1.0
+            }
+        self.HARDWARE_CONFIG = {
+            "rev_switch": True,
+            "motor": True,
+            "solenoid": False,
+            "fire_switch": False
+            }
 
-def spin_up_trigger_pulled():
-    """
-    Simple function to check if the flywheel spin up trigger has been pulled. Config will determine if it will pull a pin down or up.
+    def rev_trigger_pulled(self) -> bool:
+        """
+        Simple function to check if the flywheel spin up trigger has been pulled.
+        Config will determine if it will pull a pin down or up.
 
-    On AEBs, this should call fire_trigger_pulled(), as they do the same thing on those blasters.
-    This function also includes a small bit of debounce handling, so it does pause execution for 1/10th of a second.
-    """
-    result1 = INTERNAL_CONFIG["REV_PIN_NORMAL"] != INTERNAL_CONFIG["REV_PIN"][1].value()
-    time.sleep(0.05)
-    result2 = INTERNAL_CONFIG["REV_PIN_NORMAL"] != INTERNAL_CONFIG["REV_PIN"][1].value()
-    time.sleep(0.05)
-    return result1 and result2 and INTERNAL_CONFIG["REV_PIN_NORMAL"] != INTERNAL_CONFIG["REV_PIN"][1].value()
-
-
-def fire():
-    """
-    Fire a dart
-
-    On this on this fire mechanism, firing is done mechanically. So, this should be empty.
-    """
-    pass
-
-
-def spin_up():
-    """Spin up a motor"""
-    max_duty = 65535.0
-    duty = max_duty * INTERNAL_CONFIG["PWM_DUTY"]
-    if duty > max_duty:
-        duty = int(max_duty)
-    elif duty < 0:
-        duty = 0
-    else:
-        duty = round(duty)
-    INTERNAL_CONFIG["PWM_PIN"][1].duty_u16(duty)
-
-
-def spin_down():
-    """Spin down a motor"""
-    INTERNAL_CONFIG["PWM_PIN"][1].duty_u16(0)
-
-
-def trigger_solenoid():
-    """This function sends a pulse to fire a solenoid"""
-    pass
+        On AEBs, this should call fire_trigger_pulled(),
+        as they do the same thing on those blasters.
+        This function also includes a small bit of debounce handling,
+        so it does pause execution for 1/10th of a second.
+        """
+        result1 = self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
+        time.sleep(0.05)
+        result2 = self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
+        time.sleep(0.05)
+        return result1 and result2 and self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
