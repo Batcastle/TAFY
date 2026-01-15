@@ -52,6 +52,7 @@ TAFY and associated hardware files are 100% open-source and free to use!
 import time
 import _thread
 from machine import Pin, PWM, I2C, Timer
+import micropython
 import fire_mech as fm
 import display
 import SmartBus
@@ -253,6 +254,8 @@ def main():
                         if mech.spin_up_trigger_pulled():
                             mech.spin_up()
 
+        if CONFIG.get("main", "mode").lower() == "debug":
+            micropython.mem_info()
 
     else:
         # The only device without a motor is a solenoid blaster or solenoid-backed AEB

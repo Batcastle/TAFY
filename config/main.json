@@ -14,5 +14,7 @@
     "SmartBus_Freq": 400000,
     "SmartBus_Internal_Resistor": 47000,
     "internal_light": true,
-    "Internal_freq": 50000
+    "Internal_freq": 50000,
+    "mode": "debug",
+    "burst_mode_shots": 3
 }
