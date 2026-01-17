@@ -59,7 +59,7 @@ import SmartBus
 import config
 
 # Global variables
-VERSION = "v0.0.8-alpha0"
+VERSION = "v0.0.9-alpha0"
 
 
 def play_tune(event, local_config, buzzer):
@@ -192,22 +192,24 @@ def main():
         play_tune("error", CONFIG, buzzer)
         blink(0.25, led)
 
-    print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
+    if CONFIG.get("main", "mode").lower() == "debug":
+        print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
 
     if mech is None:
         print(f"No known working driver for firing mechanisims of type: {CONFIG.get("main", 'blaster_type')}")
         blink(3, led)
         play_tune("error", CONFIG, buzzer)
         return
-    print(f"Loaded driver for firing mechanism of type: {mech.FIRE_TYPE}")
+    if CONFIG.get("main", "mode").lower() == "debug":
+        print(f"Loaded driver for firing mechanism of type: {mech.FIRE_TYPE}")
 
 
     # Safety low == safety on, therefore, set the safety pin to default low
     # in case of a disconnect for safety purposes
-    mode_switch = {"SINGLE": Pin(CONFIG.get("pin_out", "mode_single"), Pin.IN, Pin.PULL_DOWN),
-                   "BURST": Pin(CONFIG.get("pin_out", "mode_burst"), Pin.IN, Pin.PULL_DOWN),
-                   "AUTO": Pin(CONFIG.get("pin_out", "mode_auto"), Pin.IN, Pin.PULL_DOWN),
-                   "SAFE": Pin(CONFIG.get("pin_out", "safety_pin"), Pin.IN, Pin.PULL_DOWN)}
+    pins = {"SINGLE": Pin(CONFIG.get("pin_out", "mode_single"), mode=Pin.IN, pull=Pin.PULL_DOWN),
+            "BURST": Pin(CONFIG.get("pin_out", "mode_burst"), mode=Pin.IN, pull=Pin.PULL_DOWN),
+            "AUTO": Pin(CONFIG.get("pin_out", "mode_auto"), mode=Pin.IN, pull=Pin.PULL_DOWN),
+            "SAFE": Pin(CONFIG.get("pin_out", "safety_pin"), mode=Pin.IN, pull=Pin.PULL_DOWN)}
     print(f"Welcome to TAFY! Version: {VERSION}")
     play_tune("startup", CONFIG, buzzer)
     # buzzer = PWM(Pin(config["buzzer_pin"]))
@@ -224,8 +226,9 @@ def main():
     internal_state = {"SHOTS_FIRED": 0,
                       "MAX_SHOTS": 0}
 
-    previous_mode = get_mode(pins)
-    current_mode = get_mode(pins)
+
+    previous_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
+    current_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
     with locks["state"]:
         disp.STATE["MODE"] = current_mode
         disp.STATE["DIRTY"] = True
@@ -242,6 +245,9 @@ def main():
             else:
                 play_tune("mode_changed", CONFIG, buzzer)
             previous_mode = current_mode
+
+        if CONFIG.get("main", "mode").lower() == "debug":
+            print(f"MODE: {current_mode}")
 
         # Handle current mode
         if current_mode == "SINGLE":
@@ -275,7 +281,7 @@ def main():
         time.sleep(0.05)
 
         # Update mode
-        current_mode = get_mode(pins)
+        current_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
 
         if CONFIG.get("main", "mode").lower() == "debug":
             micropython.mem_info()
@@ -315,7 +321,7 @@ def fire_handler(mech, disp, locks, state):
     state["SHOTS_FIRED"] += 1
 
 
-def get_mode(mode_pins: dict) -> str:
+def get_mode(mode_pins: dict, debug=False) -> str:
     """Get current fire mode"""
     # 1. Read all states ONCE to save time and ensure consistency
     is_safe   = get_pin_value(mode_pins["SAFE"])
@@ -337,6 +343,8 @@ def get_mode(mode_pins: dict) -> str:
     if is_auto and not is_single and not is_burst:
         return "AUTO"
 
+    print("ERROR! Pins are not toggling right!")
+    print(f"STATE:\n\tSINGLE: {is_single}\n\tBURST: {is_burst}\n\tAUTO: {is_auto}")
     # Default if multiple pins are high or none are high
     return "SAFE"
 
@@ -346,7 +354,7 @@ def get_pin_value(pin) -> bool:
     count = 5
     status = {True: 0, False: 0}
     for _ in range(count):
-        if pin.value() == 1:
+        if pin.value():
             status[True] += 1
         else:
             status[False] += 1
@@ -396,13 +404,16 @@ def update(completed=False):
         tim = Timer()
         tim.init(freq=10, mode=Timer.PERIODIC, callback=timer)
 
-        print("Updating...")
+        if CONFIG.get("main", "mode").lower() == "debug":
+            print("Updating...")
         if "display_string" in dir(disp):
+            time.sleep(1)
             disp.display_string("Updating...")
     else:
         led.value(1)
         play_tune("update_complete", CONFIG, buzzer)
-        print("UPDATE COMPLETE!")
+        if CONFIG.get("main", "mode").lower() == "debug":
+            print("UPDATE COMPLETE!")
         if "display_string" in dir(disp):
             disp.display_string("Update Complete!")
 

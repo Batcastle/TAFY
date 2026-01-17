@@ -32,9 +32,11 @@ import fire_mech.base
 
 class FireMechanism(fire_mech.base.FireMechanism):
     """Fire Mechanism object for flywheel blasters with mechanical pushers"""
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, silent=False):
         super().__init__(config)
-        print("initalizing flywheel/mechanical fire mechanism!")
+        if not silent:
+            if CONFIG.get("main", "mode").lower() == "debug":
+                print("initalizing flywheel/mechanical fire mechanism!")
         if "flywheel_pwm_pin" in self.config.get_section("pin_out"):
             self.INTERNAL_CONFIG["PWM_PIN"][0] = self.config.get("pin_out", "flywheel_pwm_pin")
         if "flywheel_pwm_freq" in config.get_section("main"):
@@ -67,12 +69,6 @@ class FireMechanism(fire_mech.base.FireMechanism):
         self.INTERNAL_CONFIG["PWM_PIN"][1].freq(self.PWM_FREQ)
 
         self.FIRE_TYPE = "flywheel_mechanical"
-        self.INTERNAL_CONFIG = {
-            "PWM_PIN": [0, None],
-            "REV_PIN": [2, None],
-            "REV_PIN_NORMAL": 0,
-            "PWM_DUTY": 1.0
-            }
         self.HARDWARE_CONFIG = {
             "rev_switch": True,
             "motor": True,
