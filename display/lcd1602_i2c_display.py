@@ -88,14 +88,14 @@ def display_main(_, locks: dict):
         if STATE["DIRTY"]:
             disp_buffer = [f"{mode["1"]}: {STATE[mode["1"]]}", f"{mode["2"]}: {STATE[mode["2"]]}"]
             flag = True
+            STATE["DIRTY"] = False
 
     if flag:
         with locks["i2c_int"]:
             LCD_OBJ.lcd_clear()
             LCD_OBJ.lcd_display_string(disp_buffer[0], line=1, clear=True)
             LCD_OBJ.lcd_display_string(disp_buffer[1], line=2, clear=False)
-        with locks["state"]:
-            STATE["DIRTY"] = False
+
 
 
 # i2c bus (0 -- original Pi, 1 -- Rev 2 Pi)

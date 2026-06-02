@@ -56,7 +56,7 @@ class Config:
         if (name in self.config) and (name in self.locks):
             output = None
             with self.locks["mem"]:
-                output = self.config[name]
+                output = dict(self.config[name])
             return output
         raise NameError(f"Name: `{name}' not understood.")
 

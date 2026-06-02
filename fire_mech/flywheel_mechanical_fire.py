@@ -35,11 +35,11 @@ class FireMechanism(fire_mech.base.FireMechanism):
     def __init__(self, config: dict, silent=False):
         super().__init__(config)
         if not silent:
-            if CONFIG.get("main", "mode").lower() == "debug":
+            if self.config.get("main", "mode").lower() == "debug":
                 print("initalizing flywheel/mechanical fire mechanism!")
         if "flywheel_pwm_pin" in self.config.get_section("pin_out"):
             self.INTERNAL_CONFIG["PWM_PIN"][0] = self.config.get("pin_out", "flywheel_pwm_pin")
-        if "flywheel_pwm_freq" in config.get_section("main"):
+        if "flywheel_pwm_freq" in self.config.get_section("main"):
             self.PWM_FREQ = self.config.get("main", "flywheel_pwm_freq")
         if "flywheel_pwm_duty" in self.config.get_section("main"):
             duty = self.config.get("main", "flywheel_pwm_duty")

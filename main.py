@@ -59,7 +59,7 @@ import SmartBus
 import config
 
 # Global variables
-VERSION = "v0.1.0-alpha1"
+VERSION = "v0.1.1-alpha1"
 
 
 def play_tune(event, local_config, buzzer):
@@ -121,9 +121,13 @@ def init(local_config):
     if local_config.get("pin_out", "Internal_SCL") in local_config.get("pin_out", "I2C_MAP")["0"]:
         if local_config.get("pin_out", "Internal_SDA") in local_config.get("pin_out", "I2C_MAP")["0"]:
             bus = 0
+        else:
+            raise RuntimeError("INTERNAL I2C lines not on same bus")
     elif local_config.get("pin_out", "Internal_SCL") in local_config.get("pin_out", "I2C_MAP")["1"]:
         if local_config.get("pin_out", "Internal_SDA") in local_config.get("pin_out", "I2C_MAP")["1"]:
             bus = 1
+        else:
+            raise RuntimeError("INTERNAL I2C lines not on same bus")
     else:
         raise RuntimeError("INTERNAL I2C lines not on same bus")
     int_i2c = I2C(bus, scl=Pin(local_config.get("pin_out", "Internal_SCL"), Pin.PULL_UP),
@@ -139,7 +143,7 @@ def init(local_config):
             print(f"ERROR SETTING UP DISPLAY: {e}")
             print("Falling back to no-display mode")
             output_display = display.load("dummy")
-            disp = output_display.init(config, int_i2c, locks)
+            disp = output_display.init(local_config, int_i2c, locks)
     else:
         print("COULD NOT FIND VALID DISPLAY!")
         print("Falling back to no-display mode")
@@ -377,15 +381,20 @@ def update(completed=False):
 
     buzzer = PWM(Pin(CONFIG.get("pin_out", "buzzer_pin")))
 
+    output_display = None
     if CONFIG.get("main", "display_type") in display.available():
         output_display = display.load(CONFIG.get("main", "display_type"))
 
     if CONFIG.get("pin_out", "Internal_SCL") in CONFIG.get("pin_out", "I2C_MAP")["0"]:
         if CONFIG.get("pin_out", "Internal_SDA") in CONFIG.get("pin_out", "I2C_MAP")["0"]:
             bus = 0
+        else:
+            raise RuntimeError("INTERNAL I2C lines not on same bus")
     elif CONFIG.get("pin_out", "Internal_SCL") in CONFIG.get("pin_out", "I2C_MAP")["1"]:
         if CONFIG.get("pin_out", "Internal_SDA") in CONFIG.get("pin_out", "I2C_MAP")["1"]:
             bus = 1
+        else:
+            raise RuntimeError("INTERNAL I2C lines not on same bus")
     else:
         raise RuntimeError("INTERNAL I2C lines not on same bus")
     int_i2c = I2C(bus, scl=Pin(CONFIG.get("pin_out", "Internal_SCL"), Pin.PULL_UP),

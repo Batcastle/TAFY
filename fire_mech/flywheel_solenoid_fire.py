@@ -34,14 +34,9 @@ class FireMechanism(fmf.FireMechanism):
     """Extend Mechanical Fire Flywheel blasters to support solenoid pushers instead."""
     def __init__(self, config: dict):
         super().__init__(config, silent=True)
-        self.INTERNAL_CONFIG = {
-            "PWM_PIN": [12, None],
-            "REV_PIN": [14, None],
-            "TRIG_PIN": [11, None],
-            "SOL_PIN": [10, None],
-            "REV_PIN_NORMAL": 0,
-            "PWM_DUTY": 1.0
-            }
+        self.INTERNAL_CONFIG["TRIG_PIN"] = [11, None]
+        self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"] = 0
+        self.INTERNAL_CONFIG["SOL_PIN"] = [10, None]
         self.FIRE_TYPE = "flywheel_solenoid"
         self.HARDWARE_CONFIG = {
             "rev_switch": True,
@@ -49,20 +44,30 @@ class FireMechanism(fmf.FireMechanism):
             "solenoid": True,
             "fire_switch": True
         }
-        if CONFIG.get("main", "mode").lower() == "debug":
+        if self.config.get("main", "mode").lower() == "debug":
             print("initalizing flywheel/solenoid fire mechanism!")
         if "trigger_pin" in self.config.get_section("pin_out"):
             self.INTERNAL_CONFIG["TRIG_PIN"][0] = self.config.get("pin_out", "trigger_pin")
         else:
             raise KeyError("Setting `trigger_pin' not found in pin_out.json")
 
-        if "solenoid_pin" in config.get_section("pin_out"):
+        if "trigger_pin_normal" in self.config.get_section("main"):
+            self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"] = self.config.get("main", "trigger_pin_normal")
+        else:
+            raise KeyError("Setting `trigger_pin_normal' not found in main.json")
+
+
+        if "solenoid_pin" in self.config.get_section("pin_out"):
             self.INTERNAL_CONFIG["SOL_PIN"][0] = self.config.get("pin_out", "solenoid_pin")
         else:
             raise KeyError("Setting `solenoid_pin' not found in pin_out.json")
 
-        self.INTERNAL_CONFIG["TRIG_PIN"][1] = Pin(self.INTERNAL_CONFIG["TRIG_PIN"][0], Pin.IN,
-                                                  Pin.PULL_DOWN)
+        if self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]:
+            self.INTERNAL_CONFIG["TRIG_PIN"][1] = Pin(self.INTERNAL_CONFIG["TRIG_PIN"][0], Pin.IN,
+                                                      Pin.PULL_UP)
+        else:
+            self.INTERNAL_CONFIG["TRIG_PIN"][1] = Pin(self.INTERNAL_CONFIG["TRIG_PIN"][0], Pin.IN,
+                                                      Pin.PULL_DOWN)
         self.INTERNAL_CONFIG["SOL_PIN"][1] = Pin(self.INTERNAL_CONFIG["SOL_PIN"][0], Pin.OUT)
 
 
@@ -73,11 +78,11 @@ class FireMechanism(fmf.FireMechanism):
 
         This function is for the firing trigger.
         """
-        result1 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value()
+        result1 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
         time.sleep(0.05)
-        result2 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value()
+        result2 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
         time.sleep(0.05)
-        return result1 and result2 and self.INTERNAL_CONFIG["TRIG_PIN"][1].value()
+        return result1 and result2 and self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
 
     def fire(self):
         """

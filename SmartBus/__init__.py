@@ -90,9 +90,13 @@ def init(config, locks: dict):
     if INTERNAL_CONFIG["SmartBus_SCL"] in config.get("pin_out", "I2C_MAP")["0"]:
         if INTERNAL_CONFIG["SmartBus_SDA"] in config.get("pin_out", "I2C_MAP")["0"]:
             bus = 0
+        else:
+            raise RuntimeError("INTERNAL I2C lines not on same bus")
     elif INTERNAL_CONFIG["SmartBus_SCL"] in config.get("pin_out", "I2C_MAP")["1"]:
         if INTERNAL_CONFIG["SmartBus_SDA"] in config.get("pin_out", "I2C_MAP")["1"]:
             bus = 1
+        else:
+            raise RuntimeError("INTERNAL I2C lines not on same bus")
     else:
         raise RuntimeError("SmartBus I2C lines not on same bus")
 
@@ -100,8 +104,8 @@ def init(config, locks: dict):
         COMMS = I2C(bus, scl=Pin(INTERNAL_CONFIG["SmartBus_SCL"], Pin.PULL_UP),
                     sda=Pin(INTERNAL_CONFIG["SmartBus_SDA"], Pin.PULL_UP),
                     freq=INTERNAL_CONFIG["SmartBus_Freq"])
-        ID = {"upstream": ADC(INTERNAL_CONFIG["SmartBus_ID_Downstream"]),
-              "downstream": ADC(INTERNAL_CONFIG["SmartBus_ID_Upstream"])}
+        ID = {"upstream": ADC(INTERNAL_CONFIG["SmartBus_ID_Upstream"]),
+              "downstream": ADC(INTERNAL_CONFIG["SmartBus_ID_Downstream"])}
         results = COMMS.scan()
         return scan
 

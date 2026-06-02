@@ -33,7 +33,7 @@ I2C_OBJ = None
 INTERNAL_SETTINGS = {}
 
 
-def init(config, i2c_obj) -> None:
+def init(config, i2c_obj, locks, silent=False, split_thread=True) -> None:
     """Initalize 7 segment display, determine type and load necessary driver"""
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
