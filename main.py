@@ -59,7 +59,7 @@ import SmartBus
 import config
 
 # Global variables
-VERSION = "v0.0.9-alpha0"
+VERSION = "v0.1.0-alpha1"
 
 
 def play_tune(event, local_config, buzzer):

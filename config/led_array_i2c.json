@@ -1,0 +1,10 @@
+{
+    "mcp23017_address": 32,
+    "pca9685_address": 64,
+    "ammo_led_count": 8,
+    "pwm_freq": 1000,
+    "flash_threshold": 10,
+    "rgb_red_channel": 0,
+    "rgb_green_channel": 1,
+    "rgb_blue_channel": 2
+}
