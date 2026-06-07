@@ -148,7 +148,7 @@ def init(local_config):
         print("COULD NOT FIND VALID DISPLAY!")
         print("Falling back to no-display mode")
         output_display = display.load("dummy")
-        disp = output_display.init(config, int_i2c, locks)
+        disp = output_display.init(local_config, int_i2c, locks)
 
 
 
