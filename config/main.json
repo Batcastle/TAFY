@@ -3,7 +3,7 @@
     "startup_sound": "lcars_boot_sequence",
     "volume": 0.25,
     "blaster_type": "flywheel_solenoid",
-    "display_type": "lcd1602_i2c",
+    "display_type": "ssd1309_i2c",
     "aeb_steps_per_cycle": 800,
     "aeb_step_freq_hz": 800,
     "flywheel_rev_pin_normal": 0,

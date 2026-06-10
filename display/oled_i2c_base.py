@@ -26,6 +26,7 @@ Concrete drivers (ssd1306, ssd1309, etc.) subclass _OLEDBase and supply
 their own _INIT_SEQ. Everything else — buffers, framebuf, ABI wiring —
 lives here so it is not duplicated.
 """
+import time
 import framebuf
 
 # Shared state — imported by name into each driver module so main.py can
@@ -59,16 +60,24 @@ class _OLEDBase:
 
     def _send_init(self, seq):
         """Send an init byte sequence as a single I2C command stream."""
-        buf    = bytearray(len(seq) + 1)
+        buf = bytearray(len(seq) + 1)
         buf[0] = 0x00
         buf[1:] = seq
         self._i2c.writeto(self._addr, buf)
+        # Force clear display VRAM immediately after init
+        self.clear()
+        self.show()
 
     def show(self):
         """Push the framebuffer to the display."""
-        self._i2c.writeto(self._addr, self._range)
-        self._tx[1:] = self._buf
-        self._i2c.writeto(self._addr, self._tx)
+        for page in range(8):
+            self._i2c.writeto(self._addr,
+                bytes([0x00, 0x21, 0x00, 0x7F, 0x22, page, page]))
+            start = page * 128
+            tx = bytearray(129)
+            tx[0] = 0x40
+            tx[1:] = self._buf[start:start + 128]
+            self._i2c.writeto(self._addr, tx)
 
     def clear(self):
         self._fb.fill(0)
@@ -138,8 +147,10 @@ def init_oled(config, i2c_obj, locks, cfg_section, display_class, silent):
 
     with locks["i2c_int"]:
         oled = display_class(i2c_obj, addr)
+        time.sleep_ms(100)  # Give display time to stabilize
         if not silent:
             oled.clear()
+            time.sleep_ms(50)
             oled.text("Welcome to TAFY!", 0, 0)
             oled.text(config.VERSION,    0, 16)
             oled.show()
