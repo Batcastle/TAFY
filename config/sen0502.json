@@ -1,0 +1,4 @@
+{
+    "supported": [84, 85, 86, 87],
+    "max_init_value": 1023
+}
