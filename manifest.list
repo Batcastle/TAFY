@@ -2,4 +2,5 @@ display/*
 fire_mech/*
 SmartBus/*
 config/*
+misc/*
 main.py

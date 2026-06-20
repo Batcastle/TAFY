@@ -57,6 +57,7 @@ import fire_mech as fm
 import display
 import SmartBus
 import config
+import misc
 
 # Global variables
 VERSION = "v0.1.1-alpha1"
@@ -151,12 +152,13 @@ def init(local_config):
         disp = output_display.init(local_config, int_i2c, locks)
 
 
+    misc_bp = misc.controls.init(int_i2c, local_config, locks)
 
 
     if output_fm is not None:
         output_fm = output_fm.FireMechanism(local_config)
 
-    background_procs = [disp]
+    background_procs = [disp, misc_bp]
     procs = SmartBus.init(local_config, locks)
     if isinstance(procs, (list, tuple)):
         background_procs = background_procs + procs
@@ -236,6 +238,7 @@ def main():
     with locks["state"]:
         disp.STATE["MODE"] = current_mode
         disp.STATE["DIRTY"] = True
+    muted = (CONFIG.get("main", "volume") == 0)
     while True:
         # Notify user of mode change, update display and play sound
         if previous_mode != current_mode:
@@ -287,8 +290,27 @@ def main():
         # Update mode
         current_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
 
+        # Print memory info if in debug mode
         if CONFIG.get("main", "mode").lower() == "debug":
             micropython.mem_info()
+
+        # Detect mute/unmute transitions and react accordingly.
+        # This has to run every tick regardless of the previous state --
+        # only checking the volume while already muted means `muted` can
+        # only ever go False->once and never flips back to True, so a
+        # later mute->unmute cycle would be invisible to this code.
+        currently_muted = (CONFIG.get("main", "volume") == 0)
+        if currently_muted != muted:
+            if currently_muted:
+                # if CONFIG.get("main", "mode").lower() == "debug":
+                print("Muted!")
+                # No dedicated "muted" status tone exists yet -- add one to
+                # tunes.json under "status" and play it here if wanted.
+            else:
+                # if CONFIG.get("main", "mode").lower() == "debug":
+                print("Playing Unmute tone!")
+                play_tune("unmuted", CONFIG, buzzer)
+            muted = currently_muted
 
 
 
