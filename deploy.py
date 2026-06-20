@@ -3,7 +3,7 @@
 #
 #  deploy.py
 #
-#  Copyright 2025 Thomas Castleman <batcastle@draugeros.org>
+#  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -29,22 +29,29 @@ Requirements:
     - pyserial (package: python3-serial on Ubuntu)
 
 Usage:
-    ./deploy_tafy.py [-p /dev/ttyACM0] [-b 115200] [-m manifest.list] [-o] [-r]
+    ./deploy.py [-p /dev/ttyACM0] [-b 115200] [-m manifest.list] [-o] [-r]
 
 Features:
     - Reads manifest.list for files/directories/globs to deploy
     - Supports entries like "display/*" and "fire_mech/*"
     - Recursively uploads directories
     - Talks to MicroPython over raw REPL
-    - For each file:
-        - Checks if it exists on the device
-        - Prompts before overwriting unless -o/--overwrite is given
-        - With -o, overwrites and prints a warning
+    - Skips files whose content hasn't changed since the last successful
+      deploy, tracked via a local ".tafy_deploy_cache.json" next to the
+      manifest. No need to prompt or guess — if the hash matches, it's
+      identical to what's already on the device.
+    - Only checks/creates each remote directory once per run, rather than
+      once per file in that directory
+    - -o / --overwrite: ignore the cache and force a full re-upload (use
+      this after reflashing MicroPython, since the cache can't know the
+      device's filesystem was wiped)
     - -r / --run: soft-reset the board after upload to run the code
 """
 
 import argparse
 import base64
+import hashlib
+import json
 import os
 import sys
 import time
@@ -55,6 +62,8 @@ CTRL_A = b'\x01'  # raw REPL
 CTRL_B = b'\x02'  # normal REPL
 CTRL_C = b'\x03'  # interrupt
 CTRL_D = b'\x04'  # end of script / soft reboot
+
+CACHE_FILENAME = ".tafy_deploy_cache.json"
 
 
 class MicroPythonDevice:
@@ -170,6 +179,8 @@ class MicroPythonDevice:
 
     def start_update_mode(self):
         """Put in 'update mode'"""
+        self.ser.write(CTRL_C)
+        self.ser.write(CTRL_C)
         code = (
             "try:\n"
             "    import main\n"
@@ -186,6 +197,8 @@ class MicroPythonDevice:
         self.exec_raw(code)
 
     def update_complete(self):
+        self.ser.write(CTRL_C)
+        self.ser.write(CTRL_C)
         code = (
             "import main\n"
             "main.update(completed=True)\n"
@@ -242,6 +255,38 @@ class MicroPythonDevice:
             self.exec_raw(chunk_code)
 
 
+def load_cache(cache_path):
+    """
+    Load the local deploy cache: a dict mapping remote_path -> sha256 hex
+    digest of the host file content as of the last successful upload.
+    Returns an empty dict if the cache doesn't exist or can't be read.
+    """
+    if not os.path.isfile(cache_path):
+        return {}
+    try:
+        with open(cache_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        print(f"[WARN] Could not read deploy cache at '{cache_path}'; starting fresh.",
+              file=sys.stderr)
+        return {}
+
+
+def save_cache(cache_path, cache):
+    """Write the deploy cache to disk. Saved after every successful upload
+    rather than only at the end, so progress survives a mid-run failure."""
+    try:
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=2, sort_keys=True)
+    except OSError as exc:
+        print(f"[WARN] Could not write deploy cache: {exc}", file=sys.stderr)
+
+
+def file_hash(data):
+    """Return the sha256 hex digest of the given bytes."""
+    return hashlib.sha256(data).hexdigest()
+
+
 def load_manifest(manifest_path):
     """
     Read manifest.list and return a list of (host_path, remote_path) files.
@@ -296,21 +341,6 @@ def load_manifest(manifest_path):
     return files
 
 
-def prompt_overwrite(remote_path):
-    """Ask user if they want to overwrite a remote file."""
-    while True:
-        resp = input(
-            f"Remote file '{remote_path}' exists. Overwrite? [y/N]: "
-        ).strip().lower()
-        if resp == "":
-            return False
-        if resp in ("y", "yes"):
-            return True
-        if resp in ("n", "no"):
-            return False
-        print("Please answer 'y' or 'n'.")
-
-
 def main():
     parser = argparse.ArgumentParser(description="Deploy TAFY files to MicroPython over serial.")
     parser.add_argument(
@@ -331,7 +361,11 @@ def main():
     parser.add_argument(
         "-o", "--overwrite",
         action="store_true",
-        help="Overwrite existing files without prompting"
+        help=(
+            "Force re-upload of all files, ignoring the local change-cache. "
+            "Use this after reflashing MicroPython, since a fresh filesystem "
+            "won't match what the cache thinks is already on the device."
+        )
     )
 
     args = parser.parse_args()
@@ -348,8 +382,16 @@ def main():
 
     print(f"Found {len(files)} file(s) from manifest '{args.manifest}'.")
 
+    cache_path = os.path.join(os.path.dirname(os.path.abspath(args.manifest)),
+                               CACHE_FILENAME)
+    cache = load_cache(cache_path)
+
+    # Directories confirmed to exist on the device THIS run. Scoped to a
+    # single run only — the device filesystem can be wiped between runs
+    # (e.g. a fresh MicroPython flash), so this is never persisted to disk.
+    created_dirs = set()
+
     dev = MicroPythonDevice(args.port, baudrate=args.baudrate)
-    ran_code = False
 
     try:
         print("Entering raw REPL...")
@@ -358,34 +400,32 @@ def main():
         dev.start_update_mode()
 
         for host_path, remote_path in files:
-            print(f"[*] Deploying '{host_path}' -> '{remote_path}'")
-
-            exists_remote = dev.file_exists(remote_path)
-
-            # if exists_remote:
-            #     if args.overwrite:
-            #         print(f"    [WARN] Remote file '{remote_path}' exists and will be overwritten (forced by --overwrite).")
-            #     else:
-            #         if not prompt_overwrite(remote_path):
-            #             print("    [SKIP] User chose not to overwrite.\n")
-            #             continue
-            # else:
-            #     print(f"    [INFO] Remote file '{remote_path}' does not exist; will upload.")
-
-            # Ensure directories exist on device
-            remote_dir = remote_path.rsplit("/", 1)[0] if "/" in remote_path else ""
-            if remote_dir:
-                print(f"    [*] Ensuring directory '{remote_dir}' exists on device...")
-                dev.make_dirs(remote_dir)
-
-            # Read host file
             with open(host_path, "rb") as f:
                 data = f.read()
+            digest = file_hash(data)
+
+            if not args.overwrite and cache.get(remote_path) == digest:
+                print(f"[SKIP] '{remote_path}' unchanged since last deploy.\n")
+                continue
+
+            print(f"[*] Deploying '{host_path}' -> '{remote_path}'")
+
+            # Ensure directories exist on device — but only once per
+            # directory per run, rather than once per file.
+            remote_dir = remote_path.rsplit("/", 1)[0] if "/" in remote_path else ""
+            if remote_dir and remote_dir not in created_dirs:
+                print(f"    [*] Ensuring directory '{remote_dir}' exists on device...")
+                dev.make_dirs(remote_dir)
+                created_dirs.add(remote_dir)
 
             # Upload
             print(f"    [*] Uploading {len(data)} bytes...")
             dev.write_file(remote_path, data)
             print("    [OK]\n")
+
+            # Persist immediately so a mid-run failure doesn't lose progress
+            cache[remote_path] = digest
+            save_cache(cache_path, cache)
 
         print("[INFO] Requesting soft reset on device...")
         dev.exec_raw("import machine\nmachine.soft_reset()\n")
