@@ -3,7 +3,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![MicroPython](https://img.shields.io/badge/MicroPython-RP2350-brightgreen)](https://micropython.org/)
-[![Version](https://img.shields.io/badge/version-v0.1.1--alpha1-orange)]()
+[![Version](https://img.shields.io/badge/version-v0.1.3--alpha1-orange)]()
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20Pico%202-red)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
 
 TAFY is an open-source, modular, extensible firmware for electric foam dart blasters, written in MicroPython for the Raspberry Pi Pico 2. The goal is universal firmware — one codebase that can run on flywheel pistols, AEB rifles, and everything in between, with smart accessories and deep customizability from boot sounds to pin assignments.
@@ -39,7 +39,8 @@ TAFY auto-discovers fire mechanism drivers at boot. Drop a new `*_fire.py` into 
 Same auto-discovery pattern as fire mechanisms. Drop a new `*_display.py` into `display/` and it's available. Currently included drivers:
 
 - **LCD1602 over I2C** — 16x2 character LCD, shows fire mode and ammo count.
-- **SSD1309 OLED over I2C** — 128x64 OLED display *(driver in progress)*.
+- **SSD1309 OLED over I2C** — 128x64 OLED display.
+- **SSD1306 OLED over I2C** — 128x64 OLED display *(driver in progress)*.
 - **7-Segment over I2C** — Numeric display array *(driver in progress)*.
 - **Dummy** — No-display fallback. Automatically used if the configured display fails to initialize.
 
@@ -70,7 +71,7 @@ The I2C-based SmartBus accessory system is initialized and the manifest format i
 Uses the Pico 2's built-in LED to signal status — solid on when running, slow blink on fatal config error, fast blink on driver error.
 
 **OTA Update Support**
-`update()` function provides a framework for over-the-air updates over I2C, with visual and audio feedback during and after the update process.
+`update()` function provides a framework for over-the-air updates over USB (and later SmartBus), with visual and audio feedback during and after the update process.
 
 ---
 
@@ -114,6 +115,12 @@ Default pin assignments are defined in `config/pin_out.json` and are fully remap
 
 ---
 
+## Updating
+
+Simply run the deploy script again! It will flash any new or updated files to your Pico!
+
+---
+
 ## Configuration
 
 All configuration lives in `config/`. Each `.json` file is loaded at boot and is accessible through the thread-safe `Config` API.
@@ -125,8 +132,10 @@ All configuration lives in `config/`. Each `.json` file is loaded at boot and is
 | `tunes.json` | Startup and status sound definitions |
 | `7_seg.json` | 7-segment display settings |
 | `lcd1602_i2c.json` | LCD1602 display settings |
-| `ssd1309_i2c.json` | SSD1309 OLED settings |
+| `ssd130x_i2c.json` | SSD1309/SSD1306 OLED settings |
+| `led_array_i2c.json` | Settings for LED array displays |
 | `SmartBus_Manifest.json` | Known SmartBus device definitions |
+| `sen0502.json` | Settings for volume knob |
 
 Key settings in `main.json`:
 
@@ -178,6 +187,9 @@ self.HARDWARE_CONFIG = {
 
 See `display/dummy_display.py` for a minimal template and `display/lcd1602_i2c_display.py` for a full implementation.
 
+### Other Drivers
+Other drivers will need much more involved work to create, as they are not needed as often. But, they should be placed under the `misc` directory.
+
 ---
 
 ## SmartBus
@@ -216,14 +228,12 @@ Measures muzzle velocity using IR break-beam sensors at a fixed known distance. 
 
 ### Actively In Progress
 - **SmartBus device detection** — Resistance reading, manifest lookup, and device initialization
-- **SSD1309 OLED display driver** — Full display driver for 128x64 I2C OLED
 - **Fire system reliability** — Debounce tuning, trigger logic validation, and real-hardware testing on custom PCB
+- **Custom PCB hardware** — Dedicated mainboard, motor driver board, power board, and control board replacing the current breadboard prototype
 
 ### Near Term
 - **AEB rifle support** — Motor-driven pusher fire mechanism driver
-- **Flywheel pistol support** — Compact flywheel configuration support
 - **SmartMag integration** — Live ammo count from Hall effect sensor data over SmartBus
-- **Custom PCB hardware** — Dedicated mainboard, motor driver board, power board, and control board replacing the current breadboard prototype
 - **USB-C charging** — Onboard charging via BMS integration
 
 ### Long Term
@@ -234,7 +244,6 @@ Measures muzzle velocity using IR break-beam sensors at a fixed known distance. 
 - **CO2/high-pressure sniper support** — Solenoid valve control for ultra-high-velocity builds
 
 ### Future Vision
-- **Companion app** — Wireless shot logging, performance trend tracking, maintenance alerts, and dart profiling
 - **High-precision chronometer** — Sub-microsecond timing for velocities well beyond 300fps
 
 ---
@@ -262,21 +271,7 @@ Questions, ideas, or just want to show off your TAFY build? Open an issue or sta
 
 ## Intended Use
 
-TAFY is designed for recreational use — Nerf battles, backyard skirmishes, office wars, community events. The kind of place where kids and adults alike can have a blast and go home in one piece.
-
-That said, we're not naive about what this hardware can do. A high-performance blaster at 180fps will sting, and a dart to an unprotected eye is a serious injury. High-performance builds are explicitly part of TAFY's vision, and with that comes a real expectation of responsibility — eye protection, muzzle discipline, and knowing your audience. TAFY is also modular and flexible enough that someone could adapt it for use in a real firearm without much difficulty, and we're not going to pretend otherwise.
-
-The line we draw is intent. Plinking, sport shooting, competitive Nerf, even recreational use in a real firearm — that's your call to make responsibly. Using TAFY to deliberately harm or kill another person without just cause is antithetical to everything this project stands for. At its core, TAFY is about making Nerf more fun and bringing people together. That's it.
-
-TAFY is also, by design, modular and powerful. A motivated person could adapt it for use in a real firearm without much difficulty. We're not naive about that. But we want to be unambiguous about where we stand:
-
-**Using TAFY — or any derivative of it — to harm another person is antithetical to everything this project is about.**
-
-TAFY exists to make Nerf more fun. To give your blaster personality. To bring people together over a shared hobby that's as accessible to a ten year old as it is to a grown adult who just really loves foam darts. That's it. That's the whole mission.
-
-We can't stop anyone from doing anything with open-source software, and we're not going to pretend otherwise. But if you're building something with TAFY, we ask that you carry that spirit forward. Build something fun. Build something people can enjoy safely. Build something that brings people together rather than putting them at risk.
-
-At its core, TAFY is about making Nerf more fun and bringing people together. Period.
+TAFY is meant for recreational use, like Nerf battles, backyard skirmishes, office games, and community events, where kids and adults can have fun safely. However, depending on your fire mechanism, it can also be a high-performance system, on top of being a modular platform already. So, we would like to be up front about the fact that it can sting at higher speeds, with more powerful blasters, can cause serious eye injury without protection, and could be adapted for use in a real firearm. Because of that, we expect responsible use: wear eye protection, follow basic safety rules, and know your audience. The deciding factor is intent. Plinking, sport shooting, competitive Nerf, and other responsible recreational uses are up to the user, but using TAFY or anything derived from it to deliberately harm or kill someone is completely against what this project stands for. TAFY exists to make Nerf more fun, give blasters more personality, and bring people together, and we ask anyone who builds with it to carry that spirit forward.
 
 ---
 
