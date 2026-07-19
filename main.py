@@ -151,8 +151,12 @@ def init(local_config):
         output_display = display.load("dummy")
         disp = output_display.init(local_config, int_i2c, locks)
 
-
-    misc_bp = misc.controls.init(int_i2c, local_config, locks)
+    try:
+        misc_bp = misc.controls.init(int_i2c, local_config, locks)
+    except Exception as e:
+        print(f"Error setting up MISC: {e}")
+        print("Disabling misc...")
+        misc_bp = None
 
 
     if output_fm is not None:
@@ -327,8 +331,9 @@ def background_process(funcs: list, local_config: dict, locks: dict) -> None:
     time.sleep(4)
     while True:
         for each in funcs:
-            each(local_config, locks)
-            time.sleep(0.01)
+            if each is not None:
+                each(local_config, locks)
+                time.sleep(0.01)
         time.sleep(0.01)
 
 
