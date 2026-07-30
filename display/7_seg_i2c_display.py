@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  lcd1602_i2c_display.py
+#  7_seg_i2c_display.py
 #
 #  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
 #
@@ -22,6 +22,8 @@
 """
 This file provides a display driver for blasters with 4 digit 7 segment display arrays over I2C
 """
+from display.global_base import *
+
 DRIVER = None
 
 DISPLAY_TYPE = "7 SEGMENT"

@@ -23,15 +23,9 @@
 This file provides a display driver for blasters with the LCD1602 display over I2C
 """
 from time import sleep
+from display.global_base import *
 
 DISPLAY_TYPE = "LCD1602 - I2C"
-
-STATE = {"CAPACITY": 0,
-         "MODE":  "SAFE",
-         "BATTERY": None,
-         "DIRTY": True}
-
-DISPLAY_MODE = 0
 
 LCD_OBJ = None
 LCD_CONFIG = None

@@ -28,16 +28,7 @@ lives here so it is not duplicated.
 """
 import time
 import framebuf
-
-# Shared state — imported by name into each driver module so main.py can
-# reach it as disp.STATE. Only ever mutated (never reassigned), so all
-# drivers that import it share the same live dict correctly.
-STATE = {"CAPACITY": 0,
-         "MODE":     "SAFE",
-         "BATTERY":  None,
-         "DIRTY":    True}
-
-DISPLAY_MODE = 0
+from display.global_base import *
 
 
 class _OLEDBase:

@@ -24,16 +24,11 @@ This file provides a dummy driver, in case of blasters with no display output
 
 It also serves as a template to start from to write new display drivers
 """
+# This library will get you up and going with many of the basic variables you need and want to start with.
+from display.global_base import *
 
 # Always make sure to set a display type string. This is useful for debugging.
 DISPLAY_TYPE = "DUMMY"
-
-STATE = {"CAPACITY": 0,
-         "MODE":  "SAFE",
-         "BATTERY": None,
-         "DIRTY": True}
-
-DISPLAY_MODE = 0
 
 def init(_, __, ___, silent=False, split_thread=True):
     """

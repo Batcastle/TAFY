@@ -60,7 +60,7 @@ import config
 import misc
 
 # Global variables
-VERSION = "v0.1.3-alpha1"
+VERSION = "v0.1.4-alpha1"
 
 
 def play_tune(event, local_config, buzzer):

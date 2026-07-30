@@ -40,15 +40,9 @@ Battery color transitions:
     None        blue (no battery data available)
 """
 import time
+from display.global_base import *
 
 DISPLAY_TYPE = "LED Array - I2C"
-
-STATE = {"CAPACITY": 0,
-         "MODE":     "SAFE",
-         "BATTERY":  None,
-         "DIRTY":    True}
-
-DISPLAY_MODE = 0
 
 _ARRAY      = None
 _flash_tick = 0
