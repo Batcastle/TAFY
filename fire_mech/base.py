@@ -1,7 +1,30 @@
+# -*- coding: utf-8 -*-
+#
+#  base.py
+#
+#  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
 """
 This file provides the base ABI for fire mechanisms.
 It is not a dummy driver. These functions must be defined.
 """
+import time
+
 
 class FireMechanism():
     """FireMechanism class
@@ -16,17 +39,25 @@ class FireMechanism():
 
         # This defines the pin out to control the fire mechanism, and other necessary variables
         self.INTERNAL_CONFIG = {
-                "PWM_PIN": [12, None],
-                "REV_PIN": [14, None],
+                "MOTOR1_PWM_PIN": [4, None],
+                "MOTOR1_FWD_PIN": [2, None],
+                "MOTOR1_REV_PIN": [3, None],
+                "MOTOR2_PWM_PIN": [7, None],
+                "MOTOR2_FWD_PIN": [5, None],
+                "MOTOR2_REV_PIN": [6, None],
+                "REV_PIN": [13, None],
                 "TRIG_PIN": [11, None],
-                "SOL_PIN": [10, None],
+                "SOL_PIN": [20, None],
                 "REV_PIN_NORMAL": 0,
-                "PWM_DUTY": 1.0
+                "PWM_DUTY": 1.0,
+                "SOL_PWM_DUTY": 1.0,
+                "MOTOR_CHANNELS": 2
             }
 
         # Higher PWM frequencies allow more control,
         # but also increase the chance of something going wrong.
         self.PWM_FREQ = 1000
+        self.SOL_PWM_FREQ = 1000
 
         """This configuration will be READ by main, but not changed.
 They tell main what motors we have and what triggers we have, so it knows what to check and move.
@@ -112,6 +143,11 @@ or a solenoid blaster.
 
     def spin_up(self):
         """Spin up a motor"""
+        self.INTERNAL_CONFIG["MOTOR1_REV_PIN"][1].value(0)
+        self.INTERNAL_CONFIG["MOTOR1_FWD_PIN"][1].value(0)
+        if self.INTERNAL_CONFIG["MOTOR_CHANNELS"] == 2:
+            self.INTERNAL_CONFIG["MOTOR2_FWD_PIN"][1].value(0)
+            self.INTERNAL_CONFIG["MOTOR2_REV_PIN"][1].value(0)
         max_duty = 65535.0
         duty = max_duty * self.INTERNAL_CONFIG["PWM_DUTY"]
         if duty > max_duty:
@@ -120,11 +156,25 @@ or a solenoid blaster.
             duty = 0
         else:
             duty = round(duty)
-        self.INTERNAL_CONFIG["PWM_PIN"][1].duty_u16(duty)
+        time.sleep_ms(20)
+        self.INTERNAL_CONFIG["MOTOR1_REV_PIN"][1].value(0)
+        self.INTERNAL_CONFIG["MOTOR1_FWD_PIN"][1].value(1)
+        self.INTERNAL_CONFIG["MOTOR1_PWM_PIN"][1].duty_u16(duty)
+        if self.INTERNAL_CONFIG["MOTOR_CHANNELS"] == 2:
+            self.INTERNAL_CONFIG["MOTOR2_REV_PIN"][1].value(0)
+            self.INTERNAL_CONFIG["MOTOR2_FWD_PIN"][1].value(1)
+            self.INTERNAL_CONFIG["MOTOR2_PWM_PIN"][1].duty_u16(duty)
 
     def spin_down(self):
         """Spin down a motor"""
-        self.INTERNAL_CONFIG["PWM_PIN"][1].duty_u16(0)
+        self.INTERNAL_CONFIG["MOTOR1_REV_PIN"][1].value(0)
+        self.INTERNAL_CONFIG["MOTOR1_FWD_PIN"][1].value(0)
+        self.INTERNAL_CONFIG["MOTOR1_PWM_PIN"][1].duty_u16(0)
+        if self.INTERNAL_CONFIG["MOTOR_CHANNELS"] == 2:
+            self.INTERNAL_CONFIG["MOTOR2_FWD_PIN"][1].value(0)
+            self.INTERNAL_CONFIG["MOTOR2_REV_PIN"][1].value(0)
+            self.INTERNAL_CONFIG["MOTOR2_PWM_PIN"][1].duty_u16(0)
+
 
     def trigger_solenoid(self):
         """This function sends a pulse to fire a solenoid"""

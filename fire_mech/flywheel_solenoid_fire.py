@@ -26,7 +26,7 @@ designed for blasters with electric flywheels and solenoid pushers
 It also serves as a template to start from to write new fire mechanism drivers
 """
 import time
-from machine import Pin
+from machine import Pin, PWM
 import fire_mech.flywheel_mechanical_fire as fmf
 
 
@@ -46,6 +46,7 @@ class FireMechanism(fmf.FireMechanism):
         }
         if self.config.get("main", "mode").lower() == "debug":
             print("initalizing flywheel/solenoid fire mechanism!")
+
         if "trigger_pin" in self.config.get_section("pin_out"):
             self.INTERNAL_CONFIG["TRIG_PIN"][0] = self.config.get("pin_out", "trigger_pin")
         else:
@@ -62,13 +63,27 @@ class FireMechanism(fmf.FireMechanism):
         else:
             raise KeyError("Setting `solenoid_pin' not found in pin_out.json")
 
+        if "solenoid_pwm_duty" in self.config.get_section("main"):
+            duty = self.config.get("main", "solenoid_pwm_duty")
+            if duty > 1:
+                duty = 1
+            elif duty < 0:
+                duty = 0
+            self.INTERNAL_CONFIG["SOL_PWM_DUTY"] = duty
+
+        if "solenoid_pwm_freq" in self.config.get_section("main"):
+            self.SOL_PWM_FREQ = self.config.get("main", "solenoid_pwm_freq")
+
+
+        # Setup all new pins
         if self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]:
             self.INTERNAL_CONFIG["TRIG_PIN"][1] = Pin(self.INTERNAL_CONFIG["TRIG_PIN"][0], Pin.IN,
                                                       Pin.PULL_UP)
         else:
             self.INTERNAL_CONFIG["TRIG_PIN"][1] = Pin(self.INTERNAL_CONFIG["TRIG_PIN"][0], Pin.IN,
                                                       Pin.PULL_DOWN)
-        self.INTERNAL_CONFIG["SOL_PIN"][1] = Pin(self.INTERNAL_CONFIG["SOL_PIN"][0], Pin.OUT)
+        self.INTERNAL_CONFIG["SOL_PIN"][1] = PWM(Pin(self.INTERNAL_CONFIG["SOL_PIN"][0], Pin.OUT))
+        self.INTERNAL_CONFIG["SOL_PIN"][1].freq(self.SOL_PWM_FREQ)
 
 
     def fire_trigger_pulled(self) -> bool:
@@ -79,22 +94,22 @@ class FireMechanism(fmf.FireMechanism):
         This function is for the firing trigger.
         """
         result1 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
-        time.sleep(0.05)
+        time.sleep(0.025)
         result2 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
-        time.sleep(0.05)
+        time.sleep(0.025)
         return result1 and result2 and self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
 
     def fire(self):
         """
         Fire a dart
 
-        On this on this fire mechanism, firing is done mechanically. So, this should be empty.
+        This blaster uses a solenoid, so we just trigger that.
         """
         self.trigger_solenoid()
 
 
     def trigger_solenoid(self):
         """This function sends a pulse to fire a solenoid"""
-        self.INTERNAL_CONFIG["SOL_PIN"][1].value(1)
-        time.sleep(0.1)
-        self.INTERNAL_CONFIG["SOL_PIN"][1].value(0)
+        self.INTERNAL_CONFIG["SOL_PIN"][1].duty_u16(self.INTERNAL_CONFIG["SOL_PWM_DUTY"])
+        time.sleep(0.05)
+        self.INTERNAL_CONFIG["SOL_PIN"][1].duty_u16(0)

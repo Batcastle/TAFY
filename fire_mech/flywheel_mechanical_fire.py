@@ -37,10 +37,29 @@ class FireMechanism(fire_mech.base.FireMechanism):
         if not silent:
             if self.config.get("main", "mode").lower() == "debug":
                 print("initalizing flywheel/mechanical fire mechanism!")
-        if "flywheel_pwm_pin" in self.config.get_section("pin_out"):
-            self.INTERNAL_CONFIG["PWM_PIN"][0] = self.config.get("pin_out", "flywheel_pwm_pin")
+
+        pin_out = self.config.get_section("pin_out")
+
+        if "motor_one_pwm_pin" in pin_out:
+            self.INTERNAL_CONFIG["MOTOR1_PWM_PIN"][0] = pin_out["motor_one_pwm_pin"]
+        if "motor_one_fwd_pin" in pin_out:
+            self.INTERNAL_CONFIG["MOTOR1_FWD_PIN"][0] = pin_out["motor_one_fwd_pin"]
+        if "motor_one_rev_pin" in pin_out:
+            self.INTERNAL_CONFIG["MOTOR1_REV_PIN"][0] = pin_out["motor_one_rev_pin"]
+
+        if "motor_two_pwm_pin" in pin_out:
+            self.INTERNAL_CONFIG["MOTOR2_PWM_PIN"][0] = pin_out["motor_two_pwm_pin"]
+        if "motor_two_fwd_pin" in pin_out:
+            self.INTERNAL_CONFIG["MOTOR2_FWD_PIN"][0] = pin_out["motor_two_fwd_pin"]
+        if "motor_two_rev_pin" in pin_out:
+            self.INTERNAL_CONFIG["MOTOR2_REV_PIN"][0] = pin_out["motor_two_rev_pin"]
+
         if "flywheel_pwm_freq" in self.config.get_section("main"):
             self.PWM_FREQ = self.config.get("main", "flywheel_pwm_freq")
+
+        if "flywheel_motor_channels" in self.config.get_section("main"):
+            self.INTERNAL_CONFIG["MOTOR_CHANNELS"] = self.config.get("main", "flywheel_motor_channels")
+
         if "flywheel_pwm_duty" in self.config.get_section("main"):
             duty = self.config.get("main", "flywheel_pwm_duty")
             if duty > 1:
@@ -51,8 +70,8 @@ class FireMechanism(fire_mech.base.FireMechanism):
 
 
 
-        if "flywheel_rev_pin" in self.config.get_section("pin_out"):
-            self.INTERNAL_CONFIG["REV_PIN"][0] = self.config.get("pin_out", "flywheel_rev_pin")
+        if "flywheel_spinup_trigger_pin" in pin_out:
+            self.INTERNAL_CONFIG["REV_PIN"][0] = self.config.get("pin_out", "flywheel_spinup_trigger_pin")
 
         if "flywheel_rev_pin_normal" in self.config.get_section("main"):
             self.INTERNAL_CONFIG["REV_PIN_NORMAL"] = self.config.get("main",
@@ -65,8 +84,14 @@ class FireMechanism(fire_mech.base.FireMechanism):
             normal = Pin.PULL_DOWN
 
         self.INTERNAL_CONFIG["REV_PIN"][1] = Pin(self.INTERNAL_CONFIG["REV_PIN"][0], Pin.IN, normal)
-        self.INTERNAL_CONFIG["PWM_PIN"][1] = PWM(Pin(self.INTERNAL_CONFIG["PWM_PIN"][0]))
-        self.INTERNAL_CONFIG["PWM_PIN"][1].freq(self.PWM_FREQ)
+        self.INTERNAL_CONFIG["MOTOR1_FWD_PIN"][1] = Pin(self.INTERNAL_CONFIG["MOTOR1_FWD_PIN"][0], Pin.OUT)
+        self.INTERNAL_CONFIG["MOTOR1_REV_PIN"][1] = Pin(self.INTERNAL_CONFIG["MOTOR1_REV_PIN"][0], Pin.OUT)
+        self.INTERNAL_CONFIG["MOTOR2_FWD_PIN"][1] = Pin(self.INTERNAL_CONFIG["MOTOR2_FWD_PIN"][0], Pin.OUT)
+        self.INTERNAL_CONFIG["MOTOR2_REV_PIN"][1] = Pin(self.INTERNAL_CONFIG["MOTOR2_REV_PIN"][0], Pin.OUT)
+        self.INTERNAL_CONFIG["MOTOR1_PWM_PIN"][1] = PWM(Pin(self.INTERNAL_CONFIG["MOTOR1_PWM_PIN"][0]))
+        self.INTERNAL_CONFIG["MOTOR2_PWM_PIN"][1] = PWM(Pin(self.INTERNAL_CONFIG["MOTOR2_PWM_PIN"][0]))
+        self.INTERNAL_CONFIG["MOTOR1_PWM_PIN"][1].freq(self.PWM_FREQ)
+        self.INTERNAL_CONFIG["MOTOR2_PWM_PIN"][1].freq(self.PWM_FREQ)
 
         self.FIRE_TYPE = "flywheel_mechanical"
         self.HARDWARE_CONFIG = {
@@ -87,7 +112,7 @@ class FireMechanism(fire_mech.base.FireMechanism):
         so it does pause execution for 1/10th of a second.
         """
         result1 = self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
-        time.sleep(0.05)
+        time.sleep(0.025)
         result2 = self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
-        time.sleep(0.05)
+        time.sleep(0.025)
         return result1 and result2 and self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
