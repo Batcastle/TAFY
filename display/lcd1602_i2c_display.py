@@ -77,10 +77,11 @@ def display_main(_, locks: dict):
         return
 
     flag = False
-    if STATE.get("DIRTY"):
-        disp_buffer = [f"{mode["1"]}: {STATE.get(mode["1"])}", f"{mode["2"]}: {STATE.get(mode["2"])}"]
-        flag = True
-        STATE.set("DIRTY", False)
+    with STATE.acquire_lock():
+        if STATE._get("DIRTY"):
+            disp_buffer = [f"{mode["1"]}: {STATE._get(mode["1"])}", f"{mode["2"]}: {STATE._get(mode["2"])}"]
+            flag = True
+            STATE._set("DIRTY", False)
 
     if flag:
         with locks["i2c_int"]:

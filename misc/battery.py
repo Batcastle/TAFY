@@ -89,9 +89,10 @@ class Battery():
     def update(self, locks):
         """Update display with current charge state"""
         if self.previous_charge != self.charge:
-            self.disp.STATE.set("CHARGING", self.is_charging())
-            self.disp.STATE.set("BATTERY", self.charge)
-            self.disp.STATE.set("DIRTY", True)
+            with self.disp.STATE.acquire_lock():
+                self.disp.STATE._set("CHARGING", self.is_charging())
+                self.disp.STATE._set("BATTERY", self.charge)
+                self.disp.STATE._set("DIRTY", True)
 
     def _get_battery_voltage(self):
         """Get the current battery voltage"""

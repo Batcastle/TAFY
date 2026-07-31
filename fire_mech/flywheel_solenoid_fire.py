@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  flywheel_mechanical_fire.py
+#  flywheel_solenoid_fire.py
 #
 #  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
 #

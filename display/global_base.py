@@ -42,26 +42,38 @@ class State:
         self.DISPLAY_TYPE = None
 
     def get(self, key: str):
-        """Get a specific key from a STATE"""
-        with self.locks["mem"]:
-            if key in self.STATE:
-                # Everything in STATE is a primitive, so we can keep this quick
-                if isinstance(self.STATE[key], int):
-                    return int(self.STATE[key])
-                elif isinstance(self.STATE[key], float):
-                    return float(self.STATE[key])
-                elif isinstance(self.STATE[key], bool):
-                    return bool(self.STATE[key])
-                elif isinstance(self.STATE[key], str):
-                    return str(self.STATE[key])
-                # We DO NOT handle returning None because if we do not return anything, it returns None for us
+        """Get a specific key from a STATE, Locking"""
+        with self.acquire_lock():
+            return self._get(key)
+
+    def _get(self, key: str):
+        """Get a specific key from a STATE, NOT locking"""
+        if key in self.STATE:
+            # Everything in STATE is a primitive, so we can keep this quick
+            if isinstance(self.STATE[key], int):
+                return int(self.STATE[key])
+            elif isinstance(self.STATE[key], float):
+                return float(self.STATE[key])
+            elif isinstance(self.STATE[key], bool):
+                return bool(self.STATE[key])
+            elif isinstance(self.STATE[key], str):
+                return str(self.STATE[key])
+            # We DO NOT handle returning None because if we do not return anything, it returns None for us
 
     def set(self, key: str, value):
-        """Set a new value for a given key in a given config file"""
-        with self.locks["mem"]:
-            if key not in self.STATE:
-                raise NameError(f"Key: `{key}' not understood for STATE.")
-            self.STATE[key] = value
+        """Set a new value for a given key in a given config file, Locking"""
+        with self.acquire_lock():
+            self._set(key, value)
+
+    def _set(self, key: str, value):
+        """Set a new value for a given key in a given config file, NOT Locking"""
+        if key not in self.STATE:
+            raise NameError(f"Key: `{key}' not understood for STATE.")
+        self.STATE[key] = value
+
+    def acquire_lock(self):
+        """Acquire exclusive lock for bulk operations"""
+        return self.locks["mem"]
 
 
 STATE = State()

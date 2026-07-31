@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  controls.py
+#  __init__.py
 #
 #  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
 #
