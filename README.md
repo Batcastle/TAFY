@@ -3,7 +3,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![MicroPython](https://img.shields.io/badge/MicroPython-RP2350-brightgreen)](https://micropython.org/)
-[![Version](https://img.shields.io/badge/version-v0.1.3--alpha1-orange)]()
+[![Version](https://img.shields.io/badge/version-v0.1.6--alpha1-orange)]()
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20Pico%202-red)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
 
 TAFY is an open-source, modular, extensible firmware for electric foam dart blasters, written in MicroPython for the Raspberry Pi Pico 2. The goal is universal firmware — one codebase that can run on flywheel pistols, AEB rifles, and everything in between, with smart accessories and deep customizability from boot sounds to pin assignments.
@@ -33,14 +33,15 @@ TAFY is an open-source, modular, extensible firmware for electric foam dart blas
 TAFY auto-discovers fire mechanism drivers at boot. Drop a new `*_fire.py` into the `fire_mech/` folder and it becomes available immediately — no registry to update, no imports to add. Currently included drivers:
 
 - **Flywheel + Solenoid** — Electric flywheels with a solenoid pusher. The primary development target.
-- **Flywheel + Mechanical** — Electric flywheels with a mechanical pusher (e.g. a slam-fire setup).
+- **Flywheel + Sector Gear** — Electric flywheels with a motor-driven sector gear.
+- **Flywheel + Mechanical** — Electric flywheels with a mechanical pusher (e.g. a mechanical linkage pushing the dart).
 
 **Modular Display Support**
 Same auto-discovery pattern as fire mechanisms. Drop a new `*_display.py` into `display/` and it's available. Currently included drivers:
 
 - **LCD1602 over I2C** — 16x2 character LCD, shows fire mode and ammo count.
 - **SSD1309 OLED over I2C** — 128x64 OLED display.
-- **SSD1306 OLED over I2C** — 128x64 OLED display *(driver in progress)*.
+- **SSD1306 OLED over I2C** — 128x64 OLED display *(driver exists, needs testing.)*.
 - **7-Segment over I2C** — Numeric display array *(driver in progress)*.
 - **Dummy** — No-display fallback. Automatically used if the configured display fails to initialize.
 
@@ -73,6 +74,9 @@ Uses the Pico 2's built-in LED to signal status — solid on when running, slow 
 **OTA Update Support**
 `update()` function provides a framework for over-the-air updates over USB (and later SmartBus), with visual and audio feedback during and after the update process.
 
+**Battery percentage reporting and reporting charging status**
+On screen indicators show how much battery you have left, and whether your blaster is charging or not.
+
 ---
 
 ## Hardware Requirements
@@ -81,10 +85,10 @@ Uses the Pico 2's built-in LED to signal status — solid on when running, slow 
 |---|---|
 | Microcontroller | Raspberry Pi Pico 2 (RP2350) |
 | Firmware | MicroPython |
-| Fire Mechanism | Flywheel + solenoid or flywheel + mechanical pusher |
+| Fire Mechanism | Configurable |
 | Display | LCD1602 (I2C), SSD1309 OLED (I2C), or none |
 | Buzzer | Piezo buzzer or low-power speaker on a PWM-capable pin |
-| Power | 3S or 4S LiPo recommended for flywheel builds |
+| Power | 2S, 3S or 4S LiPo recommended for flywheel builds |
 
 Default pin assignments are defined in `config/pin_out.json` and are fully remappable.
 
@@ -94,7 +98,7 @@ Default pin assignments are defined in `config/pin_out.json` and are fully remap
 
 ## Installation
 
-**Requirements:** Python 3, `mpremote` (`pip install mpremote`)
+**Requirements:** Python 3, `python2-seriel` (`sudo apt install python3-seriel`)
 
 1. Flash MicroPython onto your Pico 2. Official instructions [here](https://micropython.org/download/RPI_PICO2/).
 
@@ -136,6 +140,7 @@ All configuration lives in `config/`. Each `.json` file is loaded at boot and is
 | `led_array_i2c.json` | Settings for LED array displays |
 | `SmartBus_Manifest.json` | Known SmartBus device definitions |
 | `sen0502.json` | Settings for volume knob |
+| `battery.json` | Discharge curves for various battery chemistries |
 
 Key settings in `main.json`:
 
@@ -230,11 +235,11 @@ Measures muzzle velocity using IR break-beam sensors at a fixed known distance. 
 - **SmartBus device detection** — Resistance reading, manifest lookup, and device initialization
 - **Fire system reliability** — Debounce tuning, trigger logic validation, and real-hardware testing on custom PCB
 - **Custom PCB hardware** — Dedicated mainboard, motor driver board, power board, and control board replacing the current breadboard prototype
+- **USB-C charging** — Onboard charging via BMS integration
 
 ### Near Term
 - **AEB rifle support** — Motor-driven pusher fire mechanism driver
 - **SmartMag integration** — Live ammo count from Hall effect sensor data over SmartBus
-- **USB-C charging** — Onboard charging via BMS integration
 
 ### Long Term
 - **Barrel Chronometer** — Hardware design and firmware integration for muzzle velocity measurement
