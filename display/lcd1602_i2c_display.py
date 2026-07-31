@@ -25,7 +25,7 @@ This file provides a display driver for blasters with the LCD1602 display over I
 from time import sleep
 from display.global_base import *
 
-DISPLAY_TYPE = "LCD1602 - I2C"
+STATE.DISPLAY_TYPE = "LCD1602 - I2C"
 
 LCD_OBJ = None
 LCD_CONFIG = None
@@ -68,21 +68,19 @@ def display_main(_, locks: dict):
     global STATE, LCD_OBJ, LCD_CONFIG
     flag = False
     mode = None
-    with locks["state"]:
-        if DISPLAY_MODE is None:
-            flag = True
-        else:
-            mode = LCD_CONFIG["display_modes"][DISPLAY_MODE]
+    if STATE.get("DISPLAY_MODE") is None:
+        flag = True
+    else:
+        mode = LCD_CONFIG["display_modes"][STATE.get("DISPLAY_MODE")]
 
     if flag:
         return
 
     flag = False
-    with locks["state"]:
-        if STATE["DIRTY"]:
-            disp_buffer = [f"{mode["1"]}: {STATE[mode["1"]]}", f"{mode["2"]}: {STATE[mode["2"]]}"]
-            flag = True
-            STATE["DIRTY"] = False
+    if STATE.get("DIRTY"):
+        disp_buffer = [f"{mode["1"]}: {STATE.get(mode["1"])}", f"{mode["2"]}: {STATE.get(mode["2"])}"]
+        flag = True
+        STATE.set("DIRTY", False)
 
     if flag:
         with locks["i2c_int"]:

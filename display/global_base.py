@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  base.py
+#  global_base.py
 #
 #  Copyright 2026 Thomas Castleman <batcastle@draugeros.org>
 #
@@ -22,18 +22,46 @@
 """
 This file defines the base that all display drivers need, at minimum
 """
+import _thread
 
-# Shared state — imported by name into each driver module so main.py can
-# reach it as disp.STATE. Only ever mutated (never reassigned), so all
-# drivers that import it share the same live dict correctly.
-STATE = {"CAPACITY": 0,
-         "MODE":     "SAFE",
-         "BATTERY":  None,
-         "CHARGING": False,
-         "UPDATING": False,
-         "DIRTY":    True}
 
-# This will likely be converted into a data class in the future.
-DISPLAY_TYPE = None
+class State:
+    """Configuration Data Class"""
+    def __init__(self) -> None:
+        """Initalize data class"""
+        self.locks = {"mem": _thread.allocate_lock()}
+        self.STATE = {
+            "CAPACITY": 0,
+            "MODE":     "SAFE",
+            "BATTERY":  None,
+            "CHARGING": False,
+            "UPDATING": False,
+            "DIRTY":    True,
+            "DISPLAY_MODE": 0
+        }
+        self.DISPLAY_TYPE = None
 
-DISPLAY_MODE = 0
+    def get(self, key: str):
+        """Get a specific key from a STATE"""
+        with self.locks["mem"]:
+            if key in self.STATE:
+                # Everything in STATE is a primitive, so we can keep this quick
+                if isinstance(self.STATE[key], int):
+                    return int(self.STATE[key])
+                elif isinstance(self.STATE[key], float):
+                    return float(self.STATE[key])
+                elif isinstance(self.STATE[key], bool):
+                    return bool(self.STATE[key])
+                elif isinstance(self.STATE[key], str):
+                    return str(self.STATE[key])
+                # We DO NOT handle returning None because if we do not return anything, it returns None for us
+
+    def set(self, key: str, value):
+        """Set a new value for a given key in a given config file"""
+        with self.locks["mem"]:
+            if key not in self.STATE:
+                raise NameError(f"Key: `{key}' not understood for STATE.")
+            self.STATE[key] = value
+
+
+STATE = State()

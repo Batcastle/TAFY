@@ -23,9 +23,9 @@
 LED Array display driver for TAFY — MCP23017 + PCA9685 over I2C.
 
 Follows the TAFY display driver ABI. STATE fields map to hardware as follows:
-    STATE["MODE"]     → mode LEDs     (MCP23017 Port B, pins 0-3)
-    STATE["CAPACITY"] → ammo bar LEDs (MCP23017 Port A, pins 0-7, up to 8)
-    STATE["BATTERY"]  → RGB indicator (PCA9685 PWM channels, smooth color shift)
+    STATE.get("MODE")     → mode LEDs     (MCP23017 Port B, pins 0-3)
+    STATE.get("CAPACITY") → ammo bar LEDs (MCP23017 Port A, pins 0-7, up to 8)
+    STATE.get("BATTERY")  → RGB indicator (PCA9685 PWM channels, smooth color shift)
 
 Hardware layout:
     MCP23017 Port A (PA0-PA7): ammo LEDs, max 8, configurable count
@@ -42,7 +42,7 @@ Battery color transitions:
 import time
 from display.global_base import *
 
-DISPLAY_TYPE = "LED Array - I2C"
+STATE.DISPLAY_TYPE = "LED Array - I2C"
 
 _ARRAY      = None
 _flash_tick = 0
@@ -239,10 +239,9 @@ def display_main(_, locks):
     if _ARRAY is None:
         return
 
-    with locks["state"]:
-        mode = STATE["MODE"]
-        cap  = STATE["CAPACITY"]
-        bat  = STATE["BATTERY"]
+    mode = STATE.get("MODE")
+    cap  = STATE.get("CAPACITY")
+    bat  = STATE.get("BATTERY")
 
     # Advance flash counter on every call.
     # ~50 calls at 10ms/call ≈ 500ms per flash half-period.

@@ -103,8 +103,7 @@ def play_tune(event, local_config, buzzer):
 
 def init_locks():
     """Initialize all the locks we will need"""
-    return {"state": _thread.allocate_lock(),
-            "i2c_int": _thread.allocate_lock(),
+    return {"i2c_int": _thread.allocate_lock(),
             "i2c_sb": _thread.allocate_lock(),
             "uart" : _thread.allocate_lock()}
 
@@ -152,7 +151,7 @@ def init(local_config):
         disp = output_display.init(local_config, int_i2c, locks)
 
     try:
-        misc_bp = misc.controls.init(int_i2c, local_config, locks)
+        background_procs = [misc.controls.init(int_i2c, local_config, locks), misc.battery.init(local_config, output_display)]
     except Exception as e:
         print(f"Error setting up MISC: {e}")
         print("Disabling misc...")
@@ -162,7 +161,7 @@ def init(local_config):
     if output_fm is not None:
         output_fm = output_fm.FireMechanism(local_config)
 
-    background_procs = [disp, misc_bp]
+    background_procs.append(disp)
     procs = SmartBus.init(local_config, locks)
     if isinstance(procs, (list, tuple)):
         background_procs = background_procs + procs
@@ -239,16 +238,14 @@ def main():
 
     previous_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
     current_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
-    with locks["state"]:
-        disp.STATE["MODE"] = current_mode
-        disp.STATE["DIRTY"] = True
+    disp.STATE.set("MODE", current_mode)
+    disp.STATE.set("DIRTY", True)
     muted = (CONFIG.get("main", "volume") == 0)
     while True:
         # Notify user of mode change, update display and play sound
         if previous_mode != current_mode:
-            with locks["state"]:
-                disp.STATE["MODE"] = current_mode
-                disp.STATE["DIRTY"] = True
+            disp.STATE.set("MODE", current_mode)
+            disp.STATE.set("DIRTY", True)
             if previous_mode == "SAFE":
                 play_tune("safety_off", CONFIG, buzzer)
             elif current_mode == "SAFE":
@@ -345,10 +342,9 @@ def fire_handler(mech, disp, locks, state):
             return
 
     mech.fire()
-    with locks["state"]:
-        if disp.STATE["CAPACITY"] > 0:
-            disp.STATE["CAPACITY"] -= 1
-            disp.STATE["DIRTY"] = True
+    if disp.STATE.get("CAPACITY")> 0:
+        disp.STATE.set("CAPACITY", disp.STATE.get("CAPACITY") - 1)
+        disp.STATE.set("DIRTY", True)
     state["SHOTS_FIRED"] += 1
 
 
@@ -432,6 +428,7 @@ def update(completed=False):
     disp = None
     if output_display is not None:
         disp = output_display.init(CONFIG, int_i2c, locks, silent=True, split_thread=False)
+    disp.STATE.set("UPDATING", True)
 
     if not completed:
         def timer(_):

@@ -21,3 +21,4 @@
 #
 
 import misc.controls as controls
+import misc.battery as battery

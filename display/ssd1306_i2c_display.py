@@ -22,9 +22,8 @@
 """SSD1306 128x64 OLED over I2C — TAFY display driver."""
 import display.oled_i2c_base as _base
 
-DISPLAY_TYPE = "SSD1306 OLED - I2C"
 STATE        = _base.STATE
-DISPLAY_MODE = _base.DISPLAY_MODE
+STATE.DISPLAY_TYPE = "SSD1306 OLED - I2C"
 
 # SSD1306 has an internal charge pump that must be enabled before display on.
 # Pre-charge and VCOMH differ from SSD1309 to suit the internal supply.

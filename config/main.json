@@ -17,5 +17,7 @@
     "internal_light": true,
     "Internal_freq": 50000,
     "mode": "debug",
-    "burst_mode_shots": 3
+    "burst_mode_shots": 3,
+    "batt_chem": "Li-ion",
+    "batt_cells": 3
 }

@@ -26,7 +26,7 @@ from display.global_base import *
 
 DRIVER = None
 
-DISPLAY_TYPE = "7 SEGMENT"
+STATE.DISPLAY_TYPE = "7 SEGMENT"
 
 THREAD_OBJ = None
 

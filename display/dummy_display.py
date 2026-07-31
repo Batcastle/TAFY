@@ -28,7 +28,7 @@ It also serves as a template to start from to write new display drivers
 from display.global_base import *
 
 # Always make sure to set a display type string. This is useful for debugging.
-DISPLAY_TYPE = "DUMMY"
+STATE.DISPLAY_TYPE = "DUMMY"
 
 def init(_, __, ___, silent=False, split_thread=True):
     """

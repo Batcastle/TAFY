@@ -22,9 +22,8 @@
 """SSD1309 128x64 OLED over I2C — TAFY display driver."""
 import display.oled_i2c_base as _base
 
-DISPLAY_TYPE = "SSD1309 OLED - I2C"
 STATE        = _base.STATE
-DISPLAY_MODE = _base.DISPLAY_MODE
+STATE.DISPLAY_TYPE = "SSD1309 OLED - I2C"
 
 # SSD1309 requires external VCC — no charge pump command.
 _INIT_SEQ = bytes([

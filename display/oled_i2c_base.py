@@ -96,14 +96,13 @@ def run_display(locks, oled):
     """
     flag = False
 
-    with locks["state"]:
-        if STATE["DIRTY"]:
-            mode = f"MODE:  {STATE['MODE']:<8}"
-            ammo = f"AMMO:  {STATE['CAPACITY']:<8}"
-            bat  = STATE["BATTERY"]
-            batt = f"BAT:   {str(bat) + '%' if bat is not None else '---':<8}"
-            STATE["DIRTY"] = False
-            flag = True
+    if STATE.get("DIRTY"):
+        mode = f"MODE:  {STATE.get('MODE'):<8}"
+        ammo = f"AMMO:  {STATE.get('CAPACITY'):<8}"
+        bat  = STATE.get("BATTERY")
+        batt = f"BAT:   {str(bat) + '%' if bat is not None else '---':<8}"
+        STATE.set("DIRTY", False)
+        flag = True
 
     if flag:
         with locks["i2c_int"]:

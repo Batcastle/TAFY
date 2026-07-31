@@ -1,12 +1,16 @@
 {
-    "mode_single": 7,
-    "mode_burst": 8,
-    "mode_auto": 9,
-    "solenoid_pin": 10,
-    "trigger_pin": 11,
-    "flywheel_pwm_pin": 12,
-    "safety_pin": 13,
-    "flywheel_rev_pin":14,
+    "mode_single": 8,
+    "mode_burst": 9,
+    "mode_auto": 10,
+    "trigger_pin": 13,
+    "safety_pin": 12,
+    "motor_one_fwd_pin":2,
+    "motor_one_rev_pin":3,
+    "motor_one_pwm_pin":4,
+    "motor_two_fwd_pin":5,
+    "motor_two_rev_pin":6,
+    "motor_two_pwm_pin":7,
+    "solenoid_pin": 20,
     "buzzer_pin": 15,
     "Internal_SDA": 16,
     "Internal_SCL": 17,
@@ -14,6 +18,8 @@
     "SmartBus_SCL": 19,
     "SmartBus_ID_Downstream": 26,
     "SmartBus_ID_Upstream": 27,
+    "Batt_Charge_Pin": 14,
+    "Batt_Status": 28
     "I2C_MAP": { "0": [0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21],
                 "1": [2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 26, 27]
                 }
