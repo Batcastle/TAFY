@@ -98,7 +98,7 @@ Default pin assignments are defined in `config/pin_out.json` and are fully remap
 
 ## Installation
 
-**Requirements:** Python 3, `python2-seriel` (`sudo apt install python3-seriel`)
+**Requirements:** Python 3, `python3-seriel` (`sudo apt install python3-seriel`)
 
 1. Flash MicroPython onto your Pico 2. Official instructions [here](https://micropython.org/download/RPI_PICO2/).
 
