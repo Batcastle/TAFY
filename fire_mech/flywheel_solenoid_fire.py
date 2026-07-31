@@ -110,6 +110,14 @@ class FireMechanism(fmf.FireMechanism):
 
     def trigger_solenoid(self):
         """This function sends a pulse to fire a solenoid"""
-        self.INTERNAL_CONFIG["SOL_PIN"][1].duty_u16(self.INTERNAL_CONFIG["SOL_PWM_DUTY"])
+        max_duty = 65535.0
+        duty = max_duty * self.INTERNAL_CONFIG["SOL_PWM_DUTY"]
+        if duty > max_duty:
+            duty = int(max_duty)
+        elif duty < 0:
+            duty = 0
+        else:
+            duty = round(duty)
+        self.INTERNAL_CONFIG["SOL_PIN"][1].duty_u16(duty)
         time.sleep(0.05)
         self.INTERNAL_CONFIG["SOL_PIN"][1].duty_u16(0)

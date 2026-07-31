@@ -150,12 +150,12 @@ def init(local_config):
         output_display = display.load("dummy")
         disp = output_display.init(local_config, int_i2c, locks)
 
+    background_procs = []
     try:
-        background_procs = [misc.controls.init(int_i2c, local_config, locks), misc.battery.init(local_config, output_display)]
+        background_procs.append(misc.controls.init(int_i2c, local_config, locks))
+        background_procs.append(misc.battery.init(local_config, output_display))
     except Exception as e:
         print(f"Error setting up MISC: {e}")
-        print("Disabling misc...")
-        misc_bp = None
 
 
     if output_fm is not None:
