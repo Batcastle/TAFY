@@ -106,9 +106,9 @@ class Battery():
 
 def init(config, disp):
     """Intialize battery subsystem"""
-    bip = Pin(config.get("pin_out", "Batt_Charge_Pin"), Pin.IN)
-    adc = ADC(Pin(config.get("pin_out", "Batt_Status")))
-    batt = Battery(config, disp, bip, adc)
+    charging = Pin(config.get("pin_out", "Batt_Charge_Pin"), Pin.IN)
+    adc = ADC(config.get("pin_out", "Batt_Status"))
+    batt = Battery(config, disp, adc, charging)
 
     def check_bat(_, lcks):
         """Background process to check battery"""
