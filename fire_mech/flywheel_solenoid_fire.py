@@ -94,9 +94,9 @@ class FireMechanism(fmf.FireMechanism):
         This function is for the firing trigger.
         """
         result1 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
-        time.sleep(0.025)
+        time.sleep(0.01)
         result2 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
-        time.sleep(0.025)
+        time.sleep(0.01)
         return result1 and result2 and self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
 
     def fire(self):

@@ -112,7 +112,7 @@ class FireMechanism(fire_mech.base.FireMechanism):
         so it does pause execution for 1/10th of a second.
         """
         result1 = self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
-        time.sleep(0.025)
+        time.sleep(0.01)
         result2 = self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()
-        time.sleep(0.025)
+        time.sleep(0.01)
         return result1 and result2 and self.INTERNAL_CONFIG["REV_PIN_NORMAL"] != self.INTERNAL_CONFIG["REV_PIN"][1].value()

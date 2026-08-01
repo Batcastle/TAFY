@@ -60,7 +60,7 @@ import config
 import misc
 
 # Global variables
-VERSION = "v0.1.6-alpha1"
+VERSION = "v0.1.7-alpha1"
 
 
 def play_tune(event, local_config, buzzer):
@@ -191,6 +191,7 @@ def main():
         print(f"FATAL CONFIG ERROR: {error}")
         blink(1, led)
 
+    run_mode = CONFIG.get("main", "mode").lower()
     buzzer = PWM(Pin(CONFIG.get("pin_out", "buzzer_pin")))
 
     try:
@@ -201,15 +202,15 @@ def main():
         play_tune("error", CONFIG, buzzer)
         blink(0.25, led)
 
-    if CONFIG.get("main", "mode").lower() == "debug":
-        print(f"Loaded driver for display of type: {disp.DISPLAY_TYPE}")
+    if run_mode == "debug":
+        print(f"Loaded driver for display of type: {disp.STATE.DISPLAY_TYPE}")
 
     if mech is None:
         print(f"No known working driver for firing mechanisims of type: {CONFIG.get("main", 'blaster_type')}")
         blink(3, led)
         play_tune("error", CONFIG, buzzer)
         return
-    if CONFIG.get("main", "mode").lower() == "debug":
+    if run_mode == "debug":
         print(f"Loaded driver for firing mechanism of type: {mech.FIRE_TYPE}")
 
 
@@ -236,11 +237,12 @@ def main():
                       "MAX_SHOTS": 0}
 
 
-    previous_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
-    current_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
+    previous_mode = get_mode(pins, debug=(run_mode == "debug"))
+    current_mode = get_mode(pins, debug=(run_mode == "debug"))
     disp.STATE.set("MODE", current_mode)
     disp.STATE.set("DIRTY", True)
     muted = (CONFIG.get("main", "volume") == 0)
+    burst_shot_count = CONFIG.get("main", "burst_mode_shots")
     while True:
         # Notify user of mode change, update display and play sound
         if previous_mode != current_mode:
@@ -254,14 +256,14 @@ def main():
                 play_tune("mode_changed", CONFIG, buzzer)
             previous_mode = current_mode
 
-        if CONFIG.get("main", "mode").lower() == "debug":
+        if run_mode == "debug":
             print(f"MODE: {current_mode}")
 
         # Handle current mode
         if current_mode == "SINGLE":
             internal_state["MAX_SHOTS"] = 1
         elif current_mode == "BURST":
-            internal_state["MAX_SHOTS"] = CONFIG.get("main", "burst_mode_shots")
+            internal_state["MAX_SHOTS"] = burst_shot_count
         elif current_mode == "AUTO":
             internal_state["MAX_SHOTS"] = -1
 
@@ -285,14 +287,11 @@ def main():
         else:
             internal_state["SHOTS_FIRED"] = 0
 
-        # Sleep for a little so we don't overwhelm the processor
-        time.sleep(0.05)
-
         # Update mode
-        current_mode = get_mode(pins, debug=(CONFIG.get("main", "mode").lower() == "debug"))
+        current_mode = get_mode(pins, debug=(run_mode == "debug"))
 
         # Print memory info if in debug mode
-        if CONFIG.get("main", "mode").lower() == "debug":
+        if run_mode == "debug":
             micropython.mem_info()
 
         # Detect mute/unmute transitions and react accordingly.
@@ -303,13 +302,11 @@ def main():
         currently_muted = (CONFIG.get("main", "volume") == 0)
         if currently_muted != muted:
             if currently_muted:
-                # if CONFIG.get("main", "mode").lower() == "debug":
-                print("Muted!")
-                # No dedicated "muted" status tone exists yet -- add one to
-                # tunes.json under "status" and play it here if wanted.
+                if run_mode == "debug":
+                    print("Muted!")
             else:
-                # if CONFIG.get("main", "mode").lower() == "debug":
-                print("Playing Unmute tone!")
+                if run_mode == "debug":
+                    print("Playing Unmute tone!")
                 play_tune("unmuted", CONFIG, buzzer)
             muted = currently_muted
 
@@ -330,8 +327,6 @@ def background_process(funcs: list, local_config: dict, locks: dict) -> None:
         for each in funcs:
             if each is not None:
                 each(local_config, locks)
-                time.sleep(0.01)
-        time.sleep(0.01)
 
 
 def fire_handler(mech, disp, locks, state):
@@ -370,8 +365,9 @@ def get_mode(mode_pins: dict, debug=False) -> str:
     if is_auto and not is_single and not is_burst:
         return "AUTO"
 
-    print("ERROR! Pins are not toggling right!")
-    print(f"STATE:\n\tSINGLE: {is_single}\n\tBURST: {is_burst}\n\tAUTO: {is_auto}")
+    if debug:
+        print("ERROR! Pins are not toggling right!")
+        print(f"STATE:\n\tSINGLE: {is_single}\n\tBURST: {is_burst}\n\tAUTO: {is_auto}")
     # Default if multiple pins are high or none are high
     return "SAFE"
 
@@ -385,7 +381,7 @@ def get_pin_value(pin) -> bool:
             status[True] += 1
         else:
             status[False] += 1
-        time.sleep(0.002)
+        time.sleep(0.001)
     if status[True] > status[False]:
         return True
     return False
