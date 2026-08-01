@@ -41,7 +41,7 @@ import time
 class SmartBus:
     """SmartBus Management Class"""
     def __init__(self, config, locks):
-        INTERNAL_CONFIG = {
+        self.INTERNAL_CONFIG = {
             "VERSION": "v1.3",
             "SmartBus_enabled": True,
             "SmartBus_SDA": 20,
@@ -123,11 +123,11 @@ class SmartBus:
     def scan(self, locks):
         """Run a full SmartBus scan"""
         # Need to figure out allowed slop here!
-        resistance = [get_current_resistance()]
+        resistance = [self._get_current_resistance()]
         time.sleep_ms(5)
-        resistance.append(get_current_resistance())
+        resistance.append(self._get_current_resistance())
         time.sleep_ms(5)
-        resistance.append(get_current_resistance())
+        resistance.append(self._get_current_resistance())
         resistance = sum(resistance) / 3
 
         # NOTHING CONNECTED
@@ -140,20 +140,23 @@ class SmartBus:
             return {}
         # Calculate new resistor
         if self.KNOWN_RESISTORS != []:
+            inv = 1 / resistance
             for each in self.KNOWN_RESISTORS:
-                resistance = resistance - (1 / each)
+                inv = inv - (1 / each)
             # resistance should now contain the value of 1 over the new resistor
-
+            if abs(inv) < 1e-9:
+                # NO CHANGES, exit
+                return
+            else:
+                resistance = 1 / inv
             if resistance < 0:
                 # RESISTOR HAS BEEN REMOVED!
                 self.deregister_device(resistance)
             else:
                 # RESISTOR ADDED
-                resistance = round(1 / resistance)
                 self.register_new_device(resistance)
         else:
             # RESISTOR ADDED
-                resistance = round(1 / resistance)
                 self.register_new_device(resistance)
 
     def register_new_device(self, resistance: float):
@@ -164,23 +167,30 @@ class SmartBus:
         """
         # RESISTOR ADDEED
         self.KNOWN_RESISTORS.append(resistance)
-        for each in enumerate(sort(self.MANIFEST["smartbus"]["devices"].keys())):
-            if each[0] == 0:
-                if resistance < (int(self.MANIFEST["smartbus"]["devices"][each[0]]) * 1.15):
-                    # NEED TO FIGURE OUT HOW TO ASSIGN IDS
-                    pass
-            elif each[0] < (len(sort(self.MANIFEST["smartbus"]["devices"].keys())) - 1):
-                if resistance > (int(self.MANIFEST["smartbus"]["devices"][each[0]]) * 0.85):
-                    if resistance < (int(self.MANIFEST["smartbus"]["devices"][each[0]]) * 1.15):
-                        # NEED TO FIGURE OUT HOW TO ASSIGN IDS
-                        pass
-            else:
-                if resistance > (int(self.MANIFEST["smartbus"]["devices"][each]) * 0.85:
+        for each in enumerate(sorted(self.MANIFEST["smartbus"]["devices"].keys())):
+            if resistance > (int(self.MANIFEST["smartbus"]["devices"][each[1]]) * 0.85):
+                if resistance < (int(self.MANIFEST["smartbus"]["devices"][each[1]]) * 1.15):
                     # NEED TO FIGURE OUT HOW TO ASSIGN IDS
                     pass
 
     def deregister_device(self, resistance: float):
-        pass
+        """Figure out which resistor was removed and deregister it with the system"""
+        if resistance < 0:
+            resistance = -1 * resistance
+        index = None
+        try:
+            # Try to find an exact match first as it's faster.
+            index = self.KNOWN_RESISTORS.index(resistance)
+        except ValueError:
+            # If that fails, check for known resistors within the same tolerances
+            for each in enumerate(self.KNOWN_RESISTORS):
+                if resistance > (each[1] * 0.85):
+                    if resistance < (each[1] * 1.15):
+                        index = each[0]
+        if index is not None:
+            del self.KNOWN_RESISTORS[index]
+        else:
+            raise ValueError(f"UNKNOWN RESISTOR VALUE: {resistance} Ohms")
 
     def load_drivers(self):
         """Load necessary drivers"""

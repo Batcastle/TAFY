@@ -23,6 +23,8 @@
 This file provides a basic driver, designed for blasters with
 electric flywheels and pushers controlled by a sector gear driven by a motor
 """
+from machine import Pin
+import time
 from fire_mech import flywheel_mechanical_fire as fmf
 
 class FireMechanism(fmf.FireMechanism):
