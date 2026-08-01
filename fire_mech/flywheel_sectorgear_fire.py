@@ -48,9 +48,45 @@ class FireMechanism(fmf.FireMechanism):
         """
 
         self.INTERNAL_CONFIG["MOTOR_CHANNELS"] = 1
+        self.INTERNAL_CONFIG["TRIG_PIN"] = [11, None]
+        self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"] = 0
+
+        if self.config.get("main", "mode").lower() == "debug":
+            print("initalizing flywheel/sectorgear fire mechanism!")
+
+        if "trigger_pin" in self.config.get_section("pin_out"):
+            self.INTERNAL_CONFIG["TRIG_PIN"][0] = self.config.get("pin_out", "trigger_pin")
+        else:
+            raise KeyError("Setting `trigger_pin' not found in pin_out.json")
+
+        if "trigger_pin_normal" in self.config.get_section("main"):
+            self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"] = self.config.get("main", "trigger_pin_normal")
+        else:
+            raise KeyError("Setting `trigger_pin_normal' not found in main.json")
+
+        # Setup all new pins
+        if self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]:
+            self.INTERNAL_CONFIG["TRIG_PIN"][1] = Pin(self.INTERNAL_CONFIG["TRIG_PIN"][0], Pin.IN,
+                                                      Pin.PULL_UP)
+        else:
+            self.INTERNAL_CONFIG["TRIG_PIN"][1] = Pin(self.INTERNAL_CONFIG["TRIG_PIN"][0], Pin.IN,
+                                                      Pin.PULL_DOWN)
 
     def fire(self):
         """
         Fire a dart
         This blaster uses a motorized pusher, so we control that
         """
+
+    def fire_trigger_pulled(self) -> bool:
+        """
+        Simple function to check if the firing trigger has been pulled.
+        Config will determine if it will pull a pin down or up.
+
+        This function is for the firing trigger.
+        """
+        result1 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
+        time.sleep(0.01)
+        result2 = self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
+        time.sleep(0.01)
+        return result1 and result2 and self.INTERNAL_CONFIG["TRIG_PIN"][1].value() != self.INTERNAL_CONFIG["TRIG_PIN_NORMAL"]
