@@ -64,7 +64,7 @@
 
     "defaults": {
       "mag_role_priority": ["mag", "mag_spine"],
-      "max_devices": 4
+      "max_devices": 5
     }
   }
 }
