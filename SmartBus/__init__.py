@@ -37,6 +37,9 @@ value to communicate what type of device it is.
 """
 from machine import Pin, ADC, I2C
 import time
+import random
+import SmartBus.drivers as drivers
+
 
 class SmartBus:
     """SmartBus Management Class"""
@@ -61,6 +64,7 @@ class SmartBus:
         self.KNOWN_RESISTORS = []
         self.CURRENT_RESISTANCE = 0
         self.CONNECTED_DEVICES = {}
+        self.known_drivers = drivers.available()
 
         print(f"Initializing SmartBus {self.INTERNAL_CONFIG['VERSION']}!")
         self.MANIFEST = config.get_section("SmartBus_Manifest")
@@ -166,12 +170,17 @@ class SmartBus:
         - Add to known devices dict with new, unique ID
         """
         # RESISTOR ADDEED
-        self.KNOWN_RESISTORS.append(resistance)
         for each in enumerate(sorted(self.MANIFEST["smartbus"]["devices"].keys())):
             if resistance > (int(self.MANIFEST["smartbus"]["devices"][each[1]]) * 0.85):
                 if resistance < (int(self.MANIFEST["smartbus"]["devices"][each[1]]) * 1.15):
                     # NEED TO FIGURE OUT HOW TO ASSIGN IDS
-                    pass
+                    self.KNOWN_RESISTORS.append(resistance)
+                    self.CONNECTED_DEVICES[self._gen_id()] = {
+                                                                "DEVICE_TYPE": None,
+                                                                "DEVICE_DRIVER": None,
+                                                                "I2C_ADDR": None,
+                                                                "RESISTOR": resistance
+                                                                }
 
     def deregister_device(self, resistance: float):
         """Figure out which resistor was removed and deregister it with the system"""
@@ -196,6 +205,13 @@ class SmartBus:
         """Load necessary drivers"""
         if self.drivers_to_load == []:
             return
+        for each in range(len(self.drivers_to_load) - 1, -1, -1):
+            if self.drivers_to_load[each] in self.known_drivers:
+                return drivers.load(self.drivers_to_load[each])
+            else:
+                print(f"UNKNOWN DRIVER: {self.drivers_to_load[each]}! LOADING DUMMY!")
+                return drivers.load("dummy")
+            del self.drivers_to_load[each]
 
     def unload_drivers(self):
         """Remove unnecessary drivers"""
@@ -204,6 +220,10 @@ class SmartBus:
 
     def run_drivers(self):
         """Run necessary driver code"""
+        pass
+
+    def _gen_id(self, length=8):
+        """Generate a unique ID for each connected device"""
         pass
 
 

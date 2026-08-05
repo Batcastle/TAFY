@@ -3,7 +3,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![MicroPython](https://img.shields.io/badge/MicroPython-RP2350-brightgreen)](https://micropython.org/)
-[![Version](https://img.shields.io/badge/version-v0.1.7--alpha1-orange)]()
+[![Version](https://img.shields.io/badge/version-v0.1.8--alpha1-orange)]()
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20Pico%202-red)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
 
 TAFY is an open-source, modular, extensible firmware for electric foam dart blasters, written in MicroPython for the Raspberry Pi Pico 2. The goal is universal firmware — one codebase that can run on flywheel pistols, AEB rifles, and everything in between, with smart accessories and deep customizability from boot sounds to pin assignments.
