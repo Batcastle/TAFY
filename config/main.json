@@ -1,7 +1,7 @@
 {
     "frequency": 0.5,
     "startup_sound": "lcars_boot_sequence",
-    "volume": 0.25,
+    "volume": 0,
     "blaster_type": "flywheel_solenoid",
     "display_type": "ssd1309_i2c",
     "aeb_steps_per_cycle": 800,
@@ -18,7 +18,7 @@
     "SmartBus_Internal_Resistor": 47000,
     "internal_light": true,
     "Internal_freq": 50000,
-    "mode": "debug",
+    "mode": "release",
     "burst_mode_shots": 3,
     "batt_chem": "Li-ion",
     "batt_cells": 3

@@ -101,7 +101,7 @@ class Battery():
         self.last_reading = time.ticks_ms()
         if self.reading_count < 10:
             self.reading_count += 1
-        return round(self.batt_in_pin.read_uv() / 1000000, 2)
+        return round(_get_voltage(self.batt_in_pin.read_u16()) / 1000000, 2)
 
 
 def init(config, disp):
@@ -116,3 +116,10 @@ def init(config, disp):
         batt.update(lcks)
 
     return check_bat
+
+
+def _get_voltage(measure: int):
+    """Convert u16 to uv"""
+    max16 = 65535
+    maxv = 3.3
+    return maxv * (measure / max16)

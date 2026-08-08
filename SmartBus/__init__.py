@@ -56,8 +56,6 @@ class SmartBus:
         }
 
         self.MANIFEST = None
-        self.drivers_to_load = []
-        self.drivers_to_unload = []
         self.drivers = {}
         self.COMMS = None
         self.ID = None
@@ -65,6 +63,7 @@ class SmartBus:
         self.CURRENT_RESISTANCE = 0
         self.CONNECTED_DEVICES = {}
         self.known_drivers = drivers.available()
+        self.acceptable_tolerance = 0.15
 
         print(f"Initializing SmartBus {self.INTERNAL_CONFIG['VERSION']}!")
         self.MANIFEST = config.get_section("SmartBus_Manifest")
@@ -115,10 +114,20 @@ class SmartBus:
         with locks["i2c_sb"]:
             return self.COMMS.scan()
 
+    def _check_tolerance(self, reading, reference):
+        """Check if a passed reading is within acceptable tolerances of reference"""
+        lower = reference * (1 - self.acceptable_tolerance)
+        upper = reference * (1 + self.acceptable_tolerance)
+        if reading >= lower:
+            if reading <= upper:
+                return True
+        return False
+
+
     def _get_current_resistance(self):
         """Get the current resistance on client side of voltage divider"""
-        upstream = self.ID["upstream"].read_uv()
-        downstream = self.ID["downstream"].read_uv()
+        upstream = _get_voltage(self.ID["upstream"].read_u16())
+        downstream = _get_voltage(self.ID["downstream"].read_u16())
         # If nothing is hooked up yet, we need to say no resistance
         if (upstream - downstream) == 0:
             return 0
@@ -138,9 +147,8 @@ class SmartBus:
         if resistance == 0:
             # No devices connected. Nothing to do.
             if self.KNOWN_RESISTORS != []:
-                for each in self.KNOWN_RESISTORS:
-                    self.deregister_device(each)
-            self.drivers_to_load = {}
+                for each in range(len(self.KNOWN_RESISTORS) - 1, -1, -1):
+                    self.deregister_device(self.KNOWN_RESISTORS[each], locks)
             return {}
         # Calculate new resistor
         if self.KNOWN_RESISTORS != []:
@@ -148,20 +156,20 @@ class SmartBus:
             for each in self.KNOWN_RESISTORS:
                 inv = inv - (1 / each)
             # resistance should now contain the value of 1 over the new resistor
-            if abs(inv) < 1e-9:
+            if abs(inv) < 1e-3:
                 # NO CHANGES, exit
                 return
             else:
                 resistance = 1 / inv
             if resistance < 0:
                 # RESISTOR HAS BEEN REMOVED!
-                self.deregister_device(resistance)
+                self.deregister_device(resistance, locks)
             else:
                 # RESISTOR ADDED
                 self.register_new_device(resistance)
         else:
             # RESISTOR ADDED
-                self.register_new_device(resistance)
+            self.register_new_device(resistance)
 
     def register_new_device(self, resistance: float):
         """Register new device:
@@ -171,18 +179,25 @@ class SmartBus:
         """
         # RESISTOR ADDEED
         for each in enumerate(sorted(self.MANIFEST["smartbus"]["devices"].keys())):
-            if resistance > (int(self.MANIFEST["smartbus"]["devices"][each[1]]) * 0.85):
-                if resistance < (int(self.MANIFEST["smartbus"]["devices"][each[1]]) * 1.15):
-                    # NEED TO FIGURE OUT HOW TO ASSIGN IDS
-                    self.KNOWN_RESISTORS.append(resistance)
-                    self.CONNECTED_DEVICES[self._gen_id()] = {
-                                                                "DEVICE_TYPE": None,
-                                                                "DEVICE_DRIVER": None,
-                                                                "I2C_ADDR": None,
-                                                                "RESISTOR": resistance
-                                                                }
+            if self._check_tolerance(resistance, int(each[1])):
+                # NEED TO FIGURE OUT HOW TO ASSIGN IDS
+                self.KNOWN_RESISTORS.append(resistance)
+                while True:
+                    new_id = _gen_id()
+                    if new_id not in self.CONNECTED_DEVICES:
+                        break
+                self.CONNECTED_DEVICES[new_id] = {
+                                                    "DEVICE_TYPE": self.MANIFEST["smartbus"]["devices"][each[1]]["role"],
+                                                    "DEVICE_DRIVER": None,
+                                                    "I2C_ADDR": None,
+                                                    "RESISTOR": resistance,
+                                                    "KEY": each[1]
+                                                }
+                print(f"FOUND NEW SMARTBUS DEVICE: {self.MANIFEST['smartbus']['devices'][each[1]]['name']}")
 
-    def deregister_device(self, resistance: float):
+                break
+
+    def deregister_device(self, resistance: float, locks):
         """Figure out which resistor was removed and deregister it with the system"""
         if resistance < 0:
             resistance = -1 * resistance
@@ -193,40 +208,83 @@ class SmartBus:
         except ValueError:
             # If that fails, check for known resistors within the same tolerances
             for each in enumerate(self.KNOWN_RESISTORS):
-                if resistance > (each[1] * 0.85):
-                    if resistance < (each[1] * 1.15):
-                        index = each[0]
+                if self._check_tolerance(resistance, each[1]):
+                    index = each[0]
         if index is not None:
             del self.KNOWN_RESISTORS[index]
         else:
             raise ValueError(f"UNKNOWN RESISTOR VALUE: {resistance} Ohms")
+        for each in self.CONNECTED_DEVICES:
+            if self._check_tolerance(resistance, self.CONNECTED_DEVICES[each]["RESISTOR"]):
+                if self.CONNECTED_DEVICES[each]["I2C_ADDR"] in ([], None):
+                    del self.CONNECTED_DEVICES[each]
+                    break
+                scan = self._scan_i2c(locks)
+                if not isinstance(self.CONNECTED_DEVICES[each]["I2C_ADDR"], (tuple, list)):
+                    if self.CONNECTED_DEVICES[each]["I2C_ADDR"] not in scan:
+                        del self.CONNECTED_DEVICES[each]
+                        break
+                    continue
+                goal = len(self.CONNECTED_DEVICES[each]["I2C_ADDR"])
+                count = 0
+                for each1 in self.CONNECTED_DEVICES[each]["I2C_ADDR"]:
+                    if each1 not in scan:
+                        count += 1
+                if count == goal:
+                    del self.CONNECTED_DEVICES[each]
+                    break
 
-    def load_drivers(self):
+
+
+    def load_drivers(self, config, locks):
         """Load necessary drivers"""
-        if self.drivers_to_load == []:
-            return
-        for each in range(len(self.drivers_to_load) - 1, -1, -1):
-            if self.drivers_to_load[each] in self.known_drivers:
-                return drivers.load(self.drivers_to_load[each])
-            else:
-                print(f"UNKNOWN DRIVER: {self.drivers_to_load[each]}! LOADING DUMMY!")
-                return drivers.load("dummy")
-            del self.drivers_to_load[each]
+        for each in self.CONNECTED_DEVICES:
+            if self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] is None:
+                if self.CONNECTED_DEVICES[each]["DEVICE_TYPE"] in self.known_drivers:
+                    self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = drivers.load(self.CONNECTED_DEVICES[each]["DEVICE_TYPE"])
+                else:
+                    print(f"UNKNOWN DRIVER: {self.CONNECTED_DEVICES[each]['DEVICE_TYPE']}! LOADING DUMMY!")
+                    self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = drivers.load("dummy")
+                self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].init(self.MANIFEST["smartbus"]["devices"][self.CONNECTED_DEVICES[each]["KEY"]]["i2c_addresses"], config, locks, self.COMMS, self.ID)
+                self.CONNECTED_DEVICES[each]["I2C_ADDR"] = self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].get_address(locks)
+        # There is actually no need to unload drivers, as they get unloaded when we del the entry from self.CONNECTED_DEVICES
 
-    def unload_drivers(self):
-        """Remove unnecessary drivers"""
-        if self.drivers_to_unload == []:
-            return
-
-    def run_drivers(self):
+    def run_drivers(self, config, locks):
         """Run necessary driver code"""
-        pass
-
-    def _gen_id(self, length=8):
-        """Generate a unique ID for each connected device"""
-        pass
+        for each in self.CONNECTED_DEVICES:
+            if self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] is not None:
+                self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].run(config, locks)
 
 
+def _gen_id(length=8):
+    """Generate a unique ID for each connected device that follows these rules:
+    - 16 characters long
+    - Starts with "DRAUGER-", no quotation marks
+    - The remaining characters should be a randomly generated string of uppercase letters and numbers
+    - Avoid Letters:
+        - O, I
+    - Avoid numnbers:
+        - 0, 1
+    - Have no special characters"""
+    allowed_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+    allowed_numbers = [2, 3, 4, 5, 6, 7, 8, 9]
+    suffix = []
+    while length > 0:
+        if (random.randint(0, 10) % 2) == 0:
+            # letter
+            suffix.append(random.choice(allowed_letters))
+        else:
+            # number
+            suffix.append(str(random.choice(allowed_numbers)))
+        length -= 1
+    return "".join(suffix)
+
+
+def _get_voltage(measure: int):
+    """Convert u16 to uv"""
+    max16 = 65535
+    maxv = 3.3
+    return maxv * (measure / max16)
 
 def init(config, locks: dict):
     """Initialize and configure SmartBus"""
@@ -240,15 +298,11 @@ def init(config, locks: dict):
 
     def load_drivers(config, locks):
         """Load new SmartBus Drivers, as needed"""
-        SB.load_drivers()
-
-    def unload_drivers(config, locks):
-        """Load new SmartBus Drivers, as needed"""
-        SB.unload_drivers()
+        SB.load_drivers(config, locks)
 
     def run_drivers(config, locks):
-        SB.run_drivers()
+        SB.run_drivers(config, locks)
 
 
-    return [scan, load_drivers, unload_drivers, run_drivers]
+    return [scan, load_drivers, run_drivers]
 
