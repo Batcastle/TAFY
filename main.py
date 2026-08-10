@@ -243,6 +243,10 @@ def main():
     disp.STATE.set("DIRTY", True)
     muted = (CONFIG.get("main", "volume") == 0)
     burst_shot_count = CONFIG.get("main", "burst_mode_shots")
+    low_battery_limit = CONFIG.get("main", "battery_low_threshold")
+    critical_battery_limit = CONFIG.get("main", "battery_critical_threshold")
+    low_battery_alert_played = False
+    critical_battery_alert_played = False
     while True:
         # Notify user of mode change, update display and play sound
         if previous_mode != current_mode:
@@ -309,6 +313,28 @@ def main():
                     print("Playing Unmute tone!")
                 play_tune("unmuted", CONFIG, buzzer)
             muted = currently_muted
+
+        # Play alert tones depending on battery state
+        if disp.STATE.get("BATTERY") is not None:
+            if disp.STATE.get("CHARGING") not in (None, True):
+                # Alert code
+                charge = round(disp.STATE.get("BATTERY"), ndigits=2)
+                if charge < low_battery_limit:
+                    if charge >= critical_battery_limit:
+                        if not low_battery_alert_played:
+                            play_tune("low_battery", CONFIG, buzzer)
+                            low_battery_alert_played = True
+                            critical_battery_alert_played = False
+                    else:
+                        if not critical_battery_alert_played:
+                            play_tune("critical_battery", CONFIG, buzzer)
+                            critical_battery_alert_played = True
+                else:
+                    critical_battery_alert_played = False
+                    low_battery_alert_played = False
+            else:
+                low_battery_alert_played = False
+                critical_battery_alert_played = False
 
 
 

@@ -49,6 +49,10 @@ class _OLEDBase:
         # 0x00 = command stream; 0x21/0x22 set col/page address in one write.
         self._range = bytearray(b'\x00\x21\x00\x7f\x22\x00\x07')
 
+        # Properties for charge tracking
+        self.low_battery_limit = 0
+        self.critical_battery_limit = 0
+
     def _send_init(self, seq):
         """Send an init byte sequence as a single I2C command stream."""
         buf = bytearray(len(seq) + 1)
@@ -101,7 +105,18 @@ def run_display(locks, oled):
             mode = f"MODE:  {STATE._get('MODE'):<8}"
             ammo = f"AMMO:  {STATE._get('CAPACITY'):<8}"
             bat  = STATE._get("BATTERY")
-            batt = f"BAT:   {str(bat) + '%' if bat is not None else '---':<8}"
+            bat_display = ""
+            if bat is not None:
+                bat_display = str(100 * round(bat, ndigits=2))
+                suffix = "%"
+                if bat < oled.low_battery_limit:
+                    suffix = suffix + "!"
+                if bat < oled.critical_battery_limit:
+                    suffix = suffix + "!"
+                bat_display = f"{bat_display} {suffix}"
+            else:
+                bat_display = "---"
+            batt = f"BAT:   {bat_display}"
             STATE._set("DIRTY", False)
             flag = True
 
@@ -145,5 +160,8 @@ def init_oled(config, i2c_obj, locks, cfg_section, display_class, silent):
             oled.text("Welcome to TAFY!", 0, 0)
             oled.text(config.VERSION,    0, 16)
             oled.show()
+
+    oled.low_battery_limit = config.get("main", "battery_low_threshold")
+    oled.critical_battery_limit = config.get("main", "battery_critical_threshold")
 
     return oled

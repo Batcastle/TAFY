@@ -21,5 +21,7 @@
     "mode": "release",
     "burst_mode_shots": 3,
     "batt_chem": "Li-ion",
-    "batt_cells": 3
+    "batt_cells": 3,
+    "battery_low_threshold": 0.2,
+    "battery_critical_threshold": 0.05
 }

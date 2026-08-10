@@ -29,10 +29,14 @@ STATE.DISPLAY_TYPE = "LCD1602 - I2C"
 
 LCD_OBJ = None
 LCD_CONFIG = None
+BATTERY_LOW_THRESHOLD = 0
+BATTERY_CRITICAL_THRESHOLD = 0
 
 def init(config, i2c_obj, locks, silent=False, split_thread=True):
     """Initalize 7 segment display, determine type and load necessary driver"""
-    global LCD_OBJ, LCD_CONFIG
+    global LCD_OBJ, LCD_CONFIG, BATTERY_CRITICAL_THRESHOLD, BATTERY_LOW_THRESHOLD
+    BATTERY_LOW_THRESHOLD = config.get("main", "battery_low_threshold")
+    BATTERY_CRITICAL_THRESHOLD = config.get("main", "battery_critical_threshold")
     I2C_OBJ = i2c_obj
     results = I2C_OBJ.scan()
     addr = None
@@ -65,7 +69,7 @@ def display_main(_, locks: dict):
        process and directly communicates with the display
     """
     # Sleep for a few seconds to let initalization of the rest of TAFY finish
-    global STATE, LCD_OBJ, LCD_CONFIG
+    global STATE, LCD_OBJ, LCD_CONFIG, BATTERY_CRITICAL_THRESHOLD, BATTERY_LOW_THRESHOLD
     flag = False
     mode = None
     if STATE.get("DISPLAY_MODE") is None:
@@ -79,10 +83,25 @@ def display_main(_, locks: dict):
     flag = False
     with STATE.acquire_lock():
         if STATE._get("DIRTY"):
-            disp_buffer = [f"{mode["1"]}: {STATE._get(mode["1"])}", f"{mode["2"]}: {STATE._get(mode["2"])}"]
+            disp_buffer = [
+                    [f"{mode["1"]}:", STATE._get(mode["1"])],
+                    [f"{mode["2"]}:", STATE._get(mode["2"])]
+                ]
             flag = True
             STATE._set("DIRTY", False)
 
+    for each in disp_buffer:
+        if "battery" in each[0].lower():
+            suffix = "%"
+            if each[1] is None:
+                each[1] = "---"
+            else:
+                if each[1] < BATTERY_LOW_THRESHOLD:
+                    suffix += "!"
+                if each[1] < BATTERY_CRITICAL_THRESHOLD:
+                    suffix += "!"
+                each[1] = str(each[1] * 100) + suffix
+        each = " ".join(each)
     if flag:
         with locks["i2c_int"]:
             LCD_OBJ.lcd_clear()
