@@ -162,10 +162,13 @@ def init(local_config):
         output_fm = output_fm.FireMechanism(local_config)
 
     background_procs.append(disp)
-    procs, sb_obj = SmartBus.init(local_config, locks)
+    sb_obj = SmartBus.init(local_config, locks)
+    procs = None
+    if sb_obj is not None:
+        procs, sb_obj = sb_obj
     if isinstance(procs, (list, tuple)):
         background_procs = background_procs + procs
-    else:
+    elif procs is not None:
         background_procs.append(procs)
     _thread.start_new_thread(background_process, (background_procs, local_config, locks))
 
