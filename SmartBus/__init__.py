@@ -38,6 +38,7 @@ value to communicate what type of device it is.
 from machine import Pin, ADC, I2C
 import time
 import random
+import _thread
 import SmartBus.drivers as drivers
 
 
@@ -55,12 +56,20 @@ class SmartBus:
             "SmartBus_Internal_Resistor": 47000,
         }
 
+        self.sb_data_lock = _thread.allocate_lock()
+        self.RETURNED_DATA = {}
+
+        self.sb_data_send_lock = _thread.allocate_lock()
+        self.SENDING_DATA = {}
+
         self.MANIFEST = None
         self.drivers = {}
         self.COMMS = None
         self.ID = None
         self.KNOWN_RESISTORS = []
         self.CURRENT_RESISTANCE = 0
+
+        self.sb_device_lock = _thread.allocate_lock()
         self.CONNECTED_DEVICES = {}
         self.known_drivers = drivers.available()
         self.acceptable_tolerance = 0.15
@@ -186,13 +195,19 @@ class SmartBus:
                     new_id = _gen_id()
                     if new_id not in self.CONNECTED_DEVICES:
                         break
-                self.CONNECTED_DEVICES[new_id] = {
+                with self.sb_device_lock:
+                    self.CONNECTED_DEVICES[new_id] = {
                                                     "DEVICE_TYPE": self.MANIFEST["smartbus"]["devices"][each[1]]["role"],
                                                     "DEVICE_DRIVER": None,
                                                     "I2C_ADDR": None,
                                                     "RESISTOR": resistance,
                                                     "KEY": each[1]
                                                 }
+                with self.sb_data_lock:
+                    self.RETURNED_DATA[new_id] = {}
+
+                with self.sb_data_sending_lock:
+                    self.SENDING_DATA[new_id] = None
                 print(f"FOUND NEW SMARTBUS DEVICE: {self.MANIFEST['smartbus']['devices'][each[1]]['name']}")
 
                 break
@@ -214,52 +229,78 @@ class SmartBus:
             del self.KNOWN_RESISTORS[index]
         else:
             raise ValueError(f"UNKNOWN RESISTOR VALUE: {resistance} Ohms")
-        for each in self.CONNECTED_DEVICES:
-            if self._check_tolerance(resistance, self.CONNECTED_DEVICES[each]["RESISTOR"]):
-                if self.CONNECTED_DEVICES[each]["I2C_ADDR"] in ([], None):
-                    del self.CONNECTED_DEVICES[each]
-                    break
-                scan = self._scan_i2c(locks)
-                if not isinstance(self.CONNECTED_DEVICES[each]["I2C_ADDR"], (tuple, list)):
-                    if self.CONNECTED_DEVICES[each]["I2C_ADDR"] not in scan:
-                        del self.CONNECTED_DEVICES[each]
+        to_del = []
+        with self.sb_device_lock:
+            for each in self.CONNECTED_DEVICES:
+                if self._check_tolerance(resistance, self.CONNECTED_DEVICES[each]["RESISTOR"]):
+                    if self.CONNECTED_DEVICES[each]["I2C_ADDR"] in ([], None):
+                        to_del.append(each)
                         break
-                    continue
-                goal = len(self.CONNECTED_DEVICES[each]["I2C_ADDR"])
-                count = 0
-                for each1 in self.CONNECTED_DEVICES[each]["I2C_ADDR"]:
-                    if each1 not in scan:
-                        count += 1
-                if count == goal:
-                    del self.CONNECTED_DEVICES[each]
-                    break
+                    scan = self._scan_i2c(locks)
+                    if not isinstance(self.CONNECTED_DEVICES[each]["I2C_ADDR"], (tuple, list)):
+                        if self.CONNECTED_DEVICES[each]["I2C_ADDR"] not in scan:
+                            to_del.append(each)
+                            break
+                        continue
+                    goal = len(self.CONNECTED_DEVICES[each]["I2C_ADDR"])
+                    count = 0
+                    for each1 in self.CONNECTED_DEVICES[each]["I2C_ADDR"]:
+                        if each1 not in scan:
+                            count += 1
+                    if count == goal:
+                        to_del.append(each)
+                        break
+            with self.sb_data_lock:
+            for each in to_del:
+                del self.CONNECTED_DEVICES[each]
+                del self.RETURNED_DATA[each]
+                del self.SENDING_DATA[each]
 
 
 
     def load_drivers(self, config, locks):
         """Load necessary drivers"""
-        for each in self.CONNECTED_DEVICES:
-            if self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] is None:
-                if self.CONNECTED_DEVICES[each]["DEVICE_TYPE"] in self.known_drivers:
-                    self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = drivers.load(self.CONNECTED_DEVICES[each]["DEVICE_TYPE"])
-                else:
-                    print(f"UNKNOWN DRIVER: {self.CONNECTED_DEVICES[each]['DEVICE_TYPE']}! LOADING DUMMY!")
-                    self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = drivers.load("dummy")
-                self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].init(self.MANIFEST["smartbus"]["devices"][self.CONNECTED_DEVICES[each]["KEY"]]["i2c_addresses"], config, locks, self.COMMS, self.ID)
-                self.CONNECTED_DEVICES[each]["I2C_ADDR"] = self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].get_address(locks)
+        with self.sb_device_lock:
+            for each in self.CONNECTED_DEVICES:
+                if self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] is None:
+                    if self.CONNECTED_DEVICES[each]["DEVICE_TYPE"] in self.known_drivers:
+                        self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = drivers.load(self.CONNECTED_DEVICES[each]["DEVICE_TYPE"])
+                    else:
+                        print(f"UNKNOWN DRIVER: {self.CONNECTED_DEVICES[each]['DEVICE_TYPE']}! LOADING DUMMY!")
+                        self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = drivers.load("dummy")
+                    self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] = self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].init(self.MANIFEST["smartbus"]["devices"][self.CONNECTED_DEVICES[each]["KEY"]]["i2c_addresses"], config, locks, self.COMMS, self.ID)
+                    self.CONNECTED_DEVICES[each]["I2C_ADDR"] = self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].get_address(locks)
         # There is actually no need to unload drivers, as they get unloaded when we del the entry from self.CONNECTED_DEVICES
 
     def run_drivers(self, config, locks):
         """Run necessary driver code"""
-        for each in self.CONNECTED_DEVICES:
-            if self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] is not None:
-                self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].run(config, locks)
+        with self.sb_device_lock:
+            for each in self.CONNECTED_DEVICES:
+                if self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"] is not None:
+                    with self.sb_data_lock:
+                        with self.sb_data_send_lock:
+                            self.RETURNED_DATA[each] = self.CONNECTED_DEVICES[each]["DEVICE_DRIVER"].run(config, locks, self.SENDING_DATA[each])
+
+    def get_returned_data(self, name):
+        """Get data returned by SmartBus device"""
+        with self.sb_data_lock:
+            return self.RETURNED_DATA[name]
+
+    def send_data(self, name, data):
+        """Get data returned by SmartBus device"""
+        with self.sb_data_send_lock:
+            return self.SENDING_DATA[name] = data
+
+    def get_devices(self):
+        """Get devices"""
+        with self.sb_device_lock:
+            return self.CONNECTED_DEVICES.keys()
+
 
 
 def _gen_id(length=8):
     """Generate a unique ID for each connected device that follows these rules:
-    - 16 characters long
-    - Starts with "DRAUGER-", no quotation marks
+    - Arbitrary length
     - The remaining characters should be a randomly generated string of uppercase letters and numbers
     - Avoid Letters:
         - O, I
@@ -286,6 +327,7 @@ def _get_voltage(measure: int):
     maxv = 3.3
     return maxv * (measure / max16)
 
+
 def init(config, locks: dict):
     """Initialize and configure SmartBus"""
     if not config.get("main", "SmartBus_enabled"):
@@ -304,5 +346,5 @@ def init(config, locks: dict):
         SB.run_drivers(config, locks)
 
 
-    return [scan, load_drivers, run_drivers]
+    return ([scan, load_drivers, run_drivers], SB)
 

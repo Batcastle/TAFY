@@ -49,7 +49,7 @@ This document is to help others track validation progress for software and hardw
 | Device Registration | Partially Validated | Only tested with dummy driver so far. |
 | Device Deregistration | Partially validated | Need to monitor device registry for this. |
 | Driver Loading | Partially Validated | Dummy Driver loads. |
-| Data routing | Not Yet Started | Currently Architecting. |
+| Data routing | In Progress | Currently Architecting and writing code. |
 | Updates over SmartBus | Architected | Will be difficult to implement without a SmartDock in development |
 | Device Hotswap | Validating | Testing validated two hot swaps on and at least one hot swap off, but no futher connections could be validated. Investigating. |
 

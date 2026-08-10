@@ -162,7 +162,7 @@ def init(local_config):
         output_fm = output_fm.FireMechanism(local_config)
 
     background_procs.append(disp)
-    procs = SmartBus.init(local_config, locks)
+    procs, sb_obj = SmartBus.init(local_config, locks)
     if isinstance(procs, (list, tuple)):
         background_procs = background_procs + procs
     else:
@@ -171,7 +171,7 @@ def init(local_config):
 
     print("Successfully Initialized!")
 
-    return (output_fm, output_display, locks)
+    return (output_fm, output_display, locks, sb_obj)
 
 
 def blink(sleep, led):
@@ -195,7 +195,7 @@ def main():
     buzzer = PWM(Pin(CONFIG.get("pin_out", "buzzer_pin")))
 
     try:
-        mech, disp, locks = init(CONFIG)
+        mech, disp, locks, sb = init(CONFIG)
     except Exception as error:
         # Fatal Error. Set the onboard LED to always on to show the error.
         print(f"FATAL DRIVER/SMARTBUS ERROR: {error}")

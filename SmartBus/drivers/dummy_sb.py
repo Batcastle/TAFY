@@ -30,7 +30,7 @@ class SmartBusDriver():
         self.ADDRESS = addresses
 
 
-    def run(self, config, locks):
+    def run(self, config, locks, input_data):
         """This is your chance for your driver to actually do something. This gets called once per loop. Argument one is your access to your config,
         Argument Two is access to your locks. YOU MUST LOCK "i2c_sb" BEFORE ACCESSING THE SMARTBUS I2C BUS AS IF THIS GETS MORE MULTITHREADED, YOUR DRIVER MAY HAVE TO WAIT IT'S TURN.
         """
