@@ -96,12 +96,13 @@ class Battery():
 
     def _get_battery_voltage(self):
         """Get the current battery voltage"""
-        # ADC reads in microvolts. Divide by 1 million to convert to volts
-        # Round to nearest 1/100th of a volt, to help reduce calculations needed
+        # On RP2350/RP2040, read_uv() is not implemented. Sometimes it works, but usually doesn't
+        # It is safer to get the u16 reading and then use a proportion to scale it up to the 0-3.3v range the ADC can read
+        # Thankfully, computers are good at math.
         self.last_reading = time.ticks_ms()
         if self.reading_count < 10:
             self.reading_count += 1
-        return round(_get_voltage(self.batt_in_pin.read_u16()) / 1000000, 2)
+        return round(_get_voltage(self.batt_in_pin.read_u16()), 2)
 
 
 def init(config, disp):
