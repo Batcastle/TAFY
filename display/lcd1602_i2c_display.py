@@ -90,18 +90,18 @@ def display_main(_, locks: dict):
             flag = True
             STATE._set("DIRTY", False)
 
-    for each in disp_buffer:
-        if "battery" in each[0].lower():
+    for each, _ in enumerate(disp_buffer):
+        if "battery" in disp_buffer[each][0].lower():
             suffix = "%"
-            if each[1] is None:
-                each[1] = "---"
+            if disp_buffer[each][1] is None:
+                disp_buffer[each][1] = "---"
             else:
-                if each[1] < BATTERY_LOW_THRESHOLD:
+                if disp_buffer[each][1] < BATTERY_LOW_THRESHOLD:
                     suffix += "!"
-                if each[1] < BATTERY_CRITICAL_THRESHOLD:
+                if disp_buffer[each][1] < BATTERY_CRITICAL_THRESHOLD:
                     suffix += "!"
-                each[1] = str(each[1] * 100) + suffix
-        each = " ".join(each)
+                disp_buffer[each][1] = str(disp_buffer[each][1] * 100) + suffix
+        disp_buffer[each] = " ".join(disp_buffer[each])
     if flag:
         with locks["i2c_int"]:
             LCD_OBJ.lcd_clear()
