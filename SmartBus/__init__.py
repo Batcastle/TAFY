@@ -46,7 +46,7 @@ class SmartBus:
     """SmartBus Management Class"""
     def __init__(self, config, locks):
         self.INTERNAL_CONFIG = {
-            "VERSION": "v1.3",
+            "VERSION": "v1.5",
             "SmartBus_enabled": True,
             "SmartBus_SDA": 20,
             "SmartBus_SCL": 21,
@@ -206,7 +206,7 @@ class SmartBus:
                 with self.sb_data_lock:
                     self.RETURNED_DATA[new_id] = {}
 
-                with self.sb_data_sending_lock:
+                with self.sb_data_send_lock:
                     self.SENDING_DATA[new_id] = None
                 print(f"FOUND NEW SMARTBUS DEVICE: {self.MANIFEST['smartbus']['devices'][each[1]]['name']}")
 
@@ -251,10 +251,10 @@ class SmartBus:
                         to_del.append(each)
                         break
             with self.sb_data_lock:
-            for each in to_del:
-                del self.CONNECTED_DEVICES[each]
-                del self.RETURNED_DATA[each]
-                del self.SENDING_DATA[each]
+                for each in to_del:
+                    del self.CONNECTED_DEVICES[each]
+                    del self.RETURNED_DATA[each]
+                    del self.SENDING_DATA[each]
 
 
 
@@ -289,7 +289,7 @@ class SmartBus:
     def send_data(self, name, data):
         """Get data returned by SmartBus device"""
         with self.sb_data_send_lock:
-            return self.SENDING_DATA[name] = data
+            self.SENDING_DATA[name] = data
 
     def get_devices(self):
         """Get devices"""
