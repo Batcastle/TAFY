@@ -42,6 +42,7 @@ class Battery():
         self.previous_charge = None
         self.last_reading = -100000
         self.reading_count = 0
+        self.charge_history = {}
 
     def is_charging(self):
         """Return if battery is charging"""
@@ -88,10 +89,33 @@ class Battery():
 
     def update(self, locks):
         """Update display with current charge state"""
+        alert = False
+        if self.is_charging():
+            cur_time = time.ticks_ms()
+            if len(self.charge_history) > 1:
+                last = sorted(self.charge_history.keys())[-1]
+                if (time.ticks_diff(cur_time, last) / 1000) >= 5:
+                    self.charge_history[time.ticks_ms()] = self.charge
+            else:
+                self.charge_history[time.ticks_ms()] = self.charge
+            if len(self.charge_history) > 100:
+                oldest = sorted(self.charge_history.keys())[0]
+                del self.charge_history[oldest]
+            if len(self.charge_history) > 10:
+                trend = _get_trend(self.charge_history.values())
+                if trend in ("level", "down"):
+                    if self.charge != 1:
+                        alert = True
+        else:
+            self.charge_history = {}
         if self.previous_charge != self.charge:
             with self.disp.STATE.acquire_lock():
                 self.disp.STATE._set("CHARGING", self.is_charging())
                 self.disp.STATE._set("BATTERY", self.charge)
+                self.disp.STATE._set("DIRTY", True)
+        if alert:
+            with self.disp.STATE.acquire_lock():
+                self.disp.STATE._set("WARNING", "BATTERY NOT CHARGING")
                 self.disp.STATE._set("DIRTY", True)
 
     def _get_battery_voltage(self):
@@ -124,3 +148,31 @@ def _get_voltage(measure: int):
     max16 = 65535
     maxv = 3.3
     return maxv * (measure / max16)
+
+
+def _get_trend(history):
+    n = len(history)
+    if n < 2:
+        return "level"
+
+    # For full buffer (n=100), these are constants — precompute them
+    # outside this function for efficiency if n is always 100
+    sum_x = n * (n - 1) // 2
+    sum_x2 = n * (n - 1) * (2 * n - 1) // 6
+    denom = n * sum_x2 - sum_x * sum_x
+
+    if denom == 0:
+        return "level"
+
+    sum_y = sum(history)
+    sum_xy = sum(i * y for i, y in enumerate(history))
+
+    slope = (n * sum_xy - sum_x * sum_y) / denom
+
+    # Slope is in units of % per 5-second sample
+    if slope > 0.05:
+        return "up"
+    elif slope < -0.05:
+        return "down"
+    else:
+        return "level"

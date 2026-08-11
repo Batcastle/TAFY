@@ -37,7 +37,9 @@ class State:
             "CHARGING": False,
             "UPDATING": False,
             "DIRTY":    True,
-            "DISPLAY_MODE": 0
+            "DISPLAY_MODE": 0,
+            "WARNING": "",
+            "ERROR": "",
         }
         self.DISPLAY_TYPE = None
 
