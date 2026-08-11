@@ -3,7 +3,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![MicroPython](https://img.shields.io/badge/MicroPython-RP2350-brightgreen)](https://micropython.org/)
-[![Version](https://img.shields.io/badge/version-v0.2.0--alpha2-orange)]()
+[![Version](https://img.shields.io/badge/version-v0.2.1--alpha2-orange)]()
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%20Pico%202-red)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
 
 TAFY is an open-source, modular, extensible firmware for electric foam dart blasters, written in MicroPython for the Raspberry Pi Pico 2. The goal is universal firmware — one codebase that can run on flywheel pistols, AEB rifles, and everything in between, with smart accessories and deep customizability from boot sounds to pin assignments.
@@ -54,7 +54,7 @@ Same auto-discovery pattern as fire mechanisms. Drop a new `*_display.py` into `
 Mode is determined by dedicated selector pins with a safe hardware default — if pin state is ambiguous, TAFY falls back to SAFE automatically.
 
 **Startup Sound & Status Tones**
-Plays configurable tunes over a piezo buzzer or low-power speaker via PWM. Sounds include startup, safety on/off, mode change, error, and update complete. Fully customizable via `config/tunes.json`.
+Plays configurable tunes over a piezo buzzer or low-power speaker via PWM. Sounds include startup, safety on/off, mode change, error, and update complete. Fully customizable via `config/tunes.json`. Volume controllable via a rotary encoder volume knob.
 
 **Ammo Counter**
 Tracks remaining dart capacity and displays it in real time. Capacity is initialized from config and updated on each shot.
@@ -71,8 +71,8 @@ The I2C-based SmartBus accessory system is initialized and the manifest format i
 **Onboard LED Indicator**
 Uses the Pico 2's built-in LED to signal status — solid on when running, slow blink on fatal config error, fast blink on driver error.
 
-**OTA Update Support**
-`update()` function provides a framework for over-the-air updates over USB (and later SmartBus), with visual and audio feedback during and after the update process.
+**Update Support**
+`update()` function and `deploy.py` provides a framework for updates over USB (and later SmartBus), with visual and audio feedback during and after the update process.
 
 **Battery percentage reporting and reporting charging status**
 On screen indicators show how much battery you have left, and whether your blaster is charging or not.
@@ -98,7 +98,7 @@ Default pin assignments are defined in `config/pin_out.json` and are fully remap
 
 ## Installation
 
-**Requirements:** Python 3, `python3-seriel` (`sudo apt install python3-seriel`)
+**Requirements:** Python 3, `python3-serial` (`sudo apt install python3-serial` on Debian-based Linux distros)
 
 1. Flash MicroPython onto your Pico 2. Official instructions [here](https://micropython.org/download/RPI_PICO2/).
 
@@ -127,7 +127,7 @@ Simply run the deploy script again! It will flash any new or updated files to yo
 
 ## Configuration
 
-All configuration lives in `config/`. Each `.json` file is loaded at boot and is accessible through the thread-safe `Config` API.
+All configuration lives in `config/`. Each `.json` file is loaded at boot and is accessible through the thread-safe `Config` API. Below are just some of the included configuration files.
 
 | File | Purpose |
 |---|---|
@@ -199,7 +199,7 @@ Other drivers will need much more involved work to create, as they are not neede
 
 ## SmartBus
 
-SmartBus is TAFY's modular I2C accessory system. It allows smart devices to be hot-swapped onto the blaster and communicate with the firmware in real time.
+SmartBus is TAFY's modular I2C-based accessory system. It allows smart devices to be hot-swapped onto the blaster and communicate with the firmware in real time.
 
 **Physical Interface (5 pins):**
 - 3.3V power (1A)
@@ -218,6 +218,7 @@ Devices identify themselves by placing a specific resistor value on the ID/Sense
 | 22kΩ | SmartMag v1 | Fully integrated smart magazine |
 | 33kΩ | Barrel Chronometer v1 | Muzzle velocity measurement |
 | 4.7kΩ | Power Only | Dumb powered accessories (lights, lasers, etc.) |
+| 1MΩ | SmartDock | Docking station to provide charging and OTA updates over SmartBus. Will likely be designed using a Pico 2W. |
 
 **SmartMag / SmartSpine**
 Smart magazines report real-time ammo level and magazine ID over I2C using Hall effect sensors to track the dart follower position. SmartSpines are clip-on adapters that bring the same capability to standard Talon-compatible magazines, requiring only a small magnet pressed into the follower.
@@ -225,7 +226,7 @@ Smart magazines report real-time ammo level and magazine ID over I2C using Hall 
 **Barrel Chronometer**
 Measures muzzle velocity using IR break-beam sensors at a fixed known distance. Reports FPS to the display in real time. Future versions may include a dedicated onboard processor for higher precision and shot logging.
 
-> SmartBus device detection and communication are actively in development. The manifest format and physical protocol are defined; firmware support for reading and routing device data is coming in an upcoming release.
+> SmartBus device detection and communication are actively in development and validation. The manifest format and physical protocol are defined; firmware support for reading and routing device data is coming in an upcoming release.
 
 ---
 
