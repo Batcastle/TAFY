@@ -4,6 +4,7 @@
       "47000": {
         "name": "smartspine_v1",
         "role": "mag_spine",
+        "connection_point": "magwell",
         "i2c_addresses": [48],
 
         "provides": ["ammo_level", "mag_id"],
@@ -19,6 +20,7 @@
       "22000": {
         "name": "smartmag_v1",
         "role": "mag",
+        "connection_point": "magwell",
         "i2c_addresses": [49],
 
         "provides": ["ammo_level", "mag_id"],
@@ -34,6 +36,7 @@
       "33000": {
         "name": "barrel_chrono_v1",
         "role": "barrel",
+        "connection_point": "barrel",
         "i2c_addresses": [80],
 
         "provides": ["muzzle_velocity"],
@@ -49,6 +52,7 @@
       "4700": {
         "name": "power_only",
         "role": "power_only",
+        "connection_point": "any",
         "i2c_addresses": [],
 
         "provides": [],
@@ -62,6 +66,22 @@
       }
     },
 
+    "1000000": {
+        "name": "SmartDock",
+        "role": "SmartDock",
+        "connection_point": "handle",
+        "i2c_addresses": [26],
+
+        "provides": ["charging", "update"],
+        "consumes": ["battery_status"],
+
+        "routes": {
+          "to_firing_system": [],
+          "to_display": ["charging", "update"],
+          "to_device": ["battery_status"]
+        }
+      }
+    },
     "defaults": {
       "mag_role_priority": ["mag", "mag_spine"],
       "max_devices": 5
