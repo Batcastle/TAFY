@@ -63,10 +63,9 @@
           "to_display": [],
           "to_device": []
         }
-      }
-    },
+      },
 
-    "1000000": {
+      "1000000": {
         "name": "SmartDock",
         "role": "SmartDock",
         "connection_point": "handle",
@@ -81,6 +80,7 @@
           "to_device": ["battery_status"]
         }
       }
+
     },
     "defaults": {
       "mag_role_priority": ["mag", "mag_spine"],
