@@ -1,0 +1,60 @@
+{
+    "charging": {
+        "desc": "Device provides charging capabilities. Data may not necessarily be provided about charging.",
+        "type": "bool",
+        "from": "device"
+    },
+    "fps": {
+        "desc": "FPS readout of most recent shot fired.",
+        "type": ["int", "float"],
+        "range": {
+            "min": 0,
+            "max": 9999
+        },
+        "from": "device"
+    },
+    "update": {
+        "desc": "Device provides update functionality to TAFY",
+        "type": "object",
+        "from": "device"
+    },
+    "battery_charge": {
+        "desc": "TAFY provides battery charge info to device.",
+        "type": "float",
+        "range": {
+            "min": 0,
+            "max": 1
+        },
+        "from": "STATE"
+    },
+    "battery_charging_status": {
+        "desc": "TAFY provides battery charging status to device.",
+        "type": "bool",
+        "from": "STATE"
+    },
+    "fire_mode": {
+        "desc": "TAFY's current fire mode",
+        "type": "str",
+        "allowed": [
+            "SAFE",
+            "SINGLE",
+            "BURST",
+            "AUTO"
+        ],
+        "from": "STATE"
+    },
+    "config": {
+        "desc": "Access to TAFY's Config system.",
+        "type": "object",
+        "from": "SmartBus"
+    },
+    "ammo_level": {
+        "desc": "Current amount of ammo in magazine",
+        "type": "int",
+        "range": {
+            "min": 0,
+            "max": 9999
+        },
+        "from": "device"
+    }
+}
