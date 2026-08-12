@@ -7,12 +7,12 @@
         "connection_point": "magwell",
         "i2c_addresses": [48],
 
-        "provides": ["ammo_level", "mag_id"],
-        "consumes": ["fire_mode", "blaster_state"],
+        "provides": ["ammo_level"],
+        "consumes": [],
 
         "routes": {
           "to_firing_system": ["ammo_level"],
-          "to_display": ["ammo_level", "mag_id"],
+          "to_display": ["ammo_level"],
           "to_device": []
         }
       },
@@ -23,12 +23,12 @@
         "connection_point": "magwell",
         "i2c_addresses": [49],
 
-        "provides": ["ammo_level", "mag_id"],
-        "consumes": ["fire_mode", "blaster_state"],
+        "provides": ["ammo_level"],
+        "consumes": [],
 
         "routes": {
           "to_firing_system": ["ammo_level"],
-          "to_display": ["ammo_level", "mag_id"],
+          "to_display": ["ammo_level"],
           "to_device": []
         }
       },
@@ -39,13 +39,13 @@
         "connection_point": "barrel",
         "i2c_addresses": [80],
 
-        "provides": ["muzzle_velocity"],
-        "consumes": ["fire_mode", "blaster_state"],
+        "provides": ["fps"],
+        "consumes": ["fire_mode", "config"],
 
         "routes": {
           "to_firing_system": [],
-          "to_display": ["muzzle_velocity"],
-          "to_device": ["blaster_state"]
+          "to_display": ["fps"],
+          "to_device": ["fire_mode", "config"]
         }
       },
 
@@ -72,12 +72,12 @@
         "i2c_addresses": [26],
 
         "provides": ["charging", "update"],
-        "consumes": ["battery_status"],
+        "consumes": ["battery_status", "battery_charging_status"],
 
         "routes": {
-          "to_firing_system": [],
+          "to_firing_system": ["update"],
           "to_display": ["charging", "update"],
-          "to_device": ["battery_status"]
+          "to_device": ["battery_status", "battery_charging_status"]
         }
       }
 

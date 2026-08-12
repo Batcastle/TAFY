@@ -55,7 +55,7 @@ import json
 import os
 import sys
 import time
-
+import fnmatch
 import serial
 
 CTRL_A = b'\x01'  # raw REPL
@@ -294,16 +294,25 @@ def load_manifest(manifest_path):
         - files
         - directories
         - dir/ and dir/* patterns (glob-like)
+        - !pattern exclusions (gitignore-style, e.g. "!*.md")
     Directories are expanded recursively.
+    Exclusion patterns are applied after all entries are expanded, so
+    order within the manifest does not matter for exclusions.
     """
     manifest_path = os.path.abspath(manifest_path)
     root = os.path.dirname(manifest_path)
     files = []
+    exclusions = []
 
     with open(manifest_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
+                continue
+
+            # Collect exclusion patterns — applied after full expansion
+            if line.startswith("!"):
+                exclusions.append(line[1:])
                 continue
 
             entry = line
@@ -337,6 +346,20 @@ def load_manifest(manifest_path):
                 files.append((host_entry_path, remote))
             else:
                 print(f"[WARN] Manifest entry not found: {entry}", file=sys.stderr)
+
+    # Apply exclusions. Each pattern is matched against the remote path,
+    # which is always forward-slash separated (e.g. "SmartBus/README.md").
+    # fnmatch matches against the full path, so "*.md" catches markdown
+    # files in any subdirectory. Use "dir/*.md" to scope to a specific dir.
+    if exclusions:
+        before = len(files)
+        files = [
+            (host, remote) for host, remote in files
+            if not any(fnmatch.fnmatch(remote, pat) for pat in exclusions)
+        ]
+        excluded = before - len(files)
+        if excluded:
+            print(f"[INFO] Excluded {excluded} file(s) via manifest exclusion patterns.")
 
     return files
 

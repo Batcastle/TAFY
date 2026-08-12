@@ -4,3 +4,4 @@ SmartBus/*
 config/*
 misc/*
 main.py
+!*.md

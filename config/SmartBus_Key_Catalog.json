@@ -1,6 +1,6 @@
 {
     "charging": {
-        "desc": "Device provides charging capabilities. Data may not necessarily be provided about charging.",
+        "desc": "Device provides charging capabilities. Data may not necessarily be provided about charging. This is mostly a documentation entry as anything charging-related happens within the battery driver.",
         "type": "bool",
         "from": "device"
     },
