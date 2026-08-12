@@ -60,7 +60,7 @@ import config
 import misc
 
 # Global variables
-VERSION = "v0.2.1-alpha2"
+VERSION = "v0.2.2-alpha2"
 
 
 def play_tune(event, local_config, buzzer):
@@ -321,7 +321,7 @@ def main():
         if disp.STATE.get("BATTERY") is not None:
             if disp.STATE.get("CHARGING") not in (None, True):
                 # Alert code
-                charge = round(disp.STATE.get("BATTERY"), ndigits=2)
+                charge = round(disp.STATE.get("BATTERY"), 2)
                 if charge < low_battery_limit:
                     if charge >= critical_battery_limit:
                         if not low_battery_alert_played:

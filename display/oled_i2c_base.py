@@ -107,7 +107,7 @@ def run_display(locks, oled):
             bat  = STATE._get("BATTERY")
             bat_display = ""
             if bat is not None:
-                bat_display = str(100 * round(bat, ndigits=2))
+                bat_display = str(100 * round(bat, 2))
                 suffix = "%"
                 if bat < oled.low_battery_limit:
                     suffix = suffix + "!"

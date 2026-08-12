@@ -100,7 +100,7 @@ def display_main(_, locks: dict):
                     suffix += "!"
                 if disp_buffer[each][1] < BATTERY_CRITICAL_THRESHOLD:
                     suffix += "!"
-                disp_buffer[each][1] = str(disp_buffer[each][1] * 100) + suffix
+                disp_buffer[each][1] = str(round(disp_buffer[each][1], 2) * 100) + suffix
         disp_buffer[each] = " ".join(disp_buffer[each])
     if flag:
         with locks["i2c_int"]:

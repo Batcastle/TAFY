@@ -50,8 +50,8 @@ class Battery():
 
     def get_charge(self):
         """
-    Return current state of charge
-    If source voltage is calculated to be 0, then return None, indicating no battery connected.
+        Return current state of charge
+        If source voltage is calculated to be 0, then return None, indicating no battery connected.
         """
         if (time.ticks_diff(time.ticks_ms(), self.last_reading) / 1000) <= self.config["check_time"]:
             return self.charge
@@ -65,24 +65,36 @@ class Battery():
         source_voltage = voltage * (self.config["r1_value"] + self.config["r2_value"])
         source_voltage = source_voltage / self.config["r2_value"]
         cell_voltage = round(source_voltage / self.cell_count, 2)
-
         self.previous_charge = self.charge
         try:
             self.charge = self.battery_settings["charge_curve"][str(cell_voltage)]
         except KeyError:
             # First, find the points closest to our reading:
-            points = {"high": 100, "low": 0}
+            points = {"high": None, "low": None}
             for each in self.battery_settings["charge_curve"]:
                 if float(each) > cell_voltage:
-                    if float(each) < points["high"]:
+                    if (points["high"] is None) or (float(each) < points["high"]):
                         points["high"] = float(each)
                 else:
                     # We know we aren't going to find anything equal. That's why we're in this except clause. Everything is > or <
-                    if float(each) > points["low"]:
+                    if (points["low"] is None) or (float(each) > points["low"]):
                         points["low"] = float(each)
+
+            # Clamp out-of-range readings to curve boundaries
+            if points["high"] is None:
+                # Above all curve points — return max charge value
+                self.charge = self.battery_settings["charge_curve"][str(max(float(k) for k in self.battery_settings["charge_curve"]))]
+                return self.charge
+            if points["low"] is None:
+                # Below all curve points — return min charge value
+                self.charge = self.battery_settings["charge_curve"][str(min(float(k) for k in self.battery_settings["charge_curve"]))]
+                return self.charge
             # We now have the points closest to our reading. Now, we can interpolate
             ratio = (cell_voltage - points["low"]) / (points["high"] - points["low"])
-            result = ratio * (self.battery_settings["charge_curve"][str(points["high"])] - self.battery_settings["charge_curve"][str(points["low"])])
+            result = str(points["high"])
+            result = self.battery_settings["charge_curve"][result]
+            result = result - self.battery_settings["charge_curve"][str(points["low"])]
+            result = ratio * result
             result = self.battery_settings["charge_curve"][str(points["low"])] + result
             self.charge = round(result, 2)
         return self.charge
