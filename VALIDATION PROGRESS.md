@@ -33,7 +33,7 @@ This document is to help others track validation progress for software and hardw
 | LCD1602 Driver | Fully Validated | Cannot push writes too often as this is a character device and cannot handle frequent refreshes. As such, this display only refreshes when necessary. |
 | SSD1306 | Written | Driver is assumed working due to similarities with SSD1309. Do not have this display in hand yet to test. |
 | Volume Knob (SEN0502) | Partially Validated | Working at a basic level. Driver will likely see a minor rewrite to be non-blocking and also support double and triple press. Volume and Mute are working though. |
-| Battery State Tracking | Written | Code is written and hardware, but all testing is still on wall power due to a lack of battery holder and power supply board. |
+| Battery State Tracking | Partially Validated | Code was tested using noise from ADC. |
 | Opportunistic Sleep | Designed | This is a late-game feature and has yet to be implemented. |
 | Flywheel + Mechanical Pusher Fire Mechanism Driver | Written | Waiting on Validated Motor Controlboard |
 | Flywheel + Solenoid Pusher Fire Mechanism Driver | Written | Waiting on Validated Motor Controlboard |
@@ -56,14 +56,15 @@ This document is to help others track validation progress for software and hardw
 ## Electrical
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Mainboard | Validating | Two hardware revisions have been fabricated. A third has been designed and is waiting to be sent to fabrication. |
-| Motor Controlboard | Validating | First revision fabricated and assembled. Testing soon. |
-| Controlboard (3-way splitter) | Partially Validated | Intital revision fabricated and assembled. Validated basic function, noticed multiple issues. Second revision designed and ready to go to fabrication fixes all discovered problems. |
-| Power Supply | Written | Designed, waiting to go to fabrication. |
-| Battery Holder | Written | Designed, waiting to go to fabrication. |
+| Mainboard | Validating | Third hardware revision at fabrication. |
+| Motor Controlboard | Validating | First revision fabricated and assembled. Testing showed major wiring issues. |
+| Motor Controlboard - half-H-Bridge variant | Written | Fabricating... |
+| Controlboard (3-way splitter) | Partially Validated | Intital revision fabricated and assembled. Validated basic function, noticed multiple issues. Second revision in fabrication... |
+| Power Supply | Written | Fabricating... |
+| Battery Holder | Written | Fabricating... |
 
 ## Mechanical
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Shells | Architected | Currently looking for a CAD designer/engineer. |
+| Shells | Architected | Currently looking for a CAD designer/engineer. Attempted using AI to design, failed miserably. |
 | AEB Gearbox | Not Started | Not entirely sure how to start this yet. |

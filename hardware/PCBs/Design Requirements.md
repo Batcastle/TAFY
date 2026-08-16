@@ -28,8 +28,8 @@ Boards will usually be placed inside blasters. These blasters will likely be use
 There are no strict size or complexity requirements. However, keep in mind, these devices may be hand-soldered, and must fit in their respective blasters. You may have room in a Hydra, Ares, or Hades. But a Pandora is VERY space constrained. They are also being placed in a device that is traditionally seen and used as a toy, so simplicity is supreme.
 
 When in doubt:
-**S**implicity is Supreme
-**A**ccessibility is Awesome
-**D**uribility Dominates
-**S**afety Saves Lives
+- **S**implicity is Supreme
+- **A**ccessibility is Awesome
+- **D**uribility Dominates
+- **S**afety Saves Lives
 
