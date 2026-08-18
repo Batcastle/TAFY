@@ -1,0 +1,1 @@
+All files in this folder are CAD models/representations of PCBs, to aid in the design process of blaster shells.
