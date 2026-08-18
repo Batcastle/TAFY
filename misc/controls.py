@@ -67,6 +67,9 @@ class Knob:
         self.initial_value     = initial_value
         self._last_btn_state   = False   # raw reading from the previous call
         self._last_btn_time    = 0       # time.ticks_ms() of last accepted click
+        self.press_log = {}
+        self.max_age = 4000
+        self.last_gesture = 0
 
         # Maximum gain: one LED lights for every detent turned.
         # This gives the tightest LED-to-position coupling and makes
@@ -215,6 +218,64 @@ class Knob:
             self.i2c.writeto_mem(self._addr, _REG_GAIN, bytes([_GAIN_MAX]))
         self.set_knob_position(self.initial_value, locks)
 
+    def log_knob(self, locks) -> None:
+        """Keep an eye on the SEN0502 and log whether it's pressed or not."""
+        pressed = self.get_knob_pressed(locks)
+        if self.press_log == {}:
+            self.press_log[time.ticks_ms()] = pressed
+            return
+        keys = sorted(self.press_log.keys())
+        latest = keys[-1]
+        if self.press_log[latest] != pressed:
+            self.press_log[time.ticks_ms()] = pressed
+        to_del = []
+        for each in self.press_log.keys():
+            if time.ticks_diff(time.ticks_ms(), each) > self.max_age:
+                to_del.append(each)
+        for each in to_del:
+            del self.press_log[each]
+
+    def get_log(self) -> dict:
+        """Provide Press log"""
+        return dict(self.press_log)
+
+    def get_latest_gesture(self) -> str:
+        """Get latest gesture as a string of periods and underscores. Periods are for short presses. underscores are for long."""
+        gesture = ""
+        keys = sorted(self.press_log.keys())
+        keys.reverse()
+        gesture_timeout = 250
+        press_timeout = 1000
+        for index, item in enumerate(keys):
+            """Iterate over presses"""
+            # Skip the last key to avoid an IndexError
+            if index == (len(keys) - 1):
+                break
+            if index == 0:
+                if self.press_log[item]:
+                    # Button is currently pressed. We don't know if it's short or long press so exit and wait and see
+                    return ""
+                if time.ticks_diff(time.ticks_ms(), item) < gesture_timeout:
+                    # Give the human an opportunity to continue the gesture
+                    return ""
+            if self.press_log[item]:
+                # When button was pressed
+                if time.ticks_diff(item, keys[index + 1]) > gesture_timeout:
+                    break
+            else:
+                # Button was released
+                if time.ticks_diff(item, keys[index + 1]) >= press_timeout:
+                    gesture += "_"
+                else:
+                    gesture += "."
+        if gesture == "":
+            return ""
+        self.last_gesture = time.ticks_ms()
+        gesture = list(gesture)
+        gesture.reverse()
+        gesture = "".join(gesture)
+        return gesture
+
 
 class BackgroundProcess:
     def __init__(self):
@@ -223,6 +284,37 @@ class BackgroundProcess:
     def run(self, config, locks):
         for each in self.processes:
             each(config, locks)
+
+
+def determine_press_type(log: dict, max_time_between_presses=100, time_since_interaction=100) -> dict:
+    """Determine how many presses we should operate under"""
+    count = {}
+    iterable = sorted(log.keys())
+    iterable.reverse()
+    for each in iterable:
+        """How the fuck do we do this???"""
+
+
+class GestureHandler:
+    def __init__(self, config):
+        """Register and handle gestures"""
+        self.handler_funcs = {}
+        self.persistant_storage = {}
+        self.config = config
+
+    def register_handler(self, gesture_string: str):
+        """Register functions to handle gestures"""
+        def decorator(func):
+            self.handler_funcs[gesture_string] = func
+            return func
+        return decorator
+
+    def dispatch(self, gesture_string: str) -> None:
+        """Run handler function for a given gesture string"""
+        if gesture_string == "":
+            return
+        self.handler_funcs[gesture_string]()
+
 
 
 def init(i2c, config, locks):
@@ -240,14 +332,42 @@ def init(i2c, config, locks):
     knob = Knob(volume * max_value, i2c, locks, addr)
     knob.set_knob_lights_position(volume * 360, locks)
 
+    handler = GestureHandler(config)
+
+    @handler.register_handler(".")
+    def toggle_mute():
+        """Toggle Mute"""
+        if "." not in handler.persistant_storage:
+            handler.persistant_storage["."] = {
+                                                "default": config.get("main", "volume"),
+                                                "current": config.get("main", "volume"),
+                                                "muted": config.get("main", "volume") == 0
+                                            }
+        if knob.disabled:
+            handler.persistant_storage["."]["muted"] = False
+            knob.enable_knob_lights(locks)
+            vol_set = round(handler.persistant_storage["."]["current"] / 360, 2)
+            config.set("main", "volume", vol_set)
+        else:
+            handler.persistant_storage["."]["current"] = config.get("main", "volume")
+            handler.persistant_storage["."]["muted"] = True
+            config.set("main", "volume", 0)
+            knob.disable_knob_lights(locks)
+
+    @handler.register_handler("..")
+    def modify_pwm():
+        if ".." not in handler.persistant_storage:
+            handler.persistant_storage[".."] = {
+                                                    "default": config.get("main", "flywheel_pwm_duty")
+                                            }
+
+
     def check_knob(cfg, lcks):
         """Check Knob settings and report"""
         # print(f"Knob Position: {knob.get_knob_position(lcks)}")
-        clicked = 0
-        click_timeout = 0
-        no_click_timeout = 0
+        log = knob.get_log()
         if not knob.disabled:
-            if knob.get_knob_pressed(lcks):
+            if log[sorted(log.keys())[-1]]:
                 clicked +=1
                 """
                 # THE ENCLOSED IS A DISABLED CODEPATH UNTIL THE NECESSARY HARDWARE/SOFTWARE IS IN PLACE TO MAKE USE OF IT
@@ -297,7 +417,10 @@ def init(i2c, config, locks):
                     vol_set = round(knob.initial_value / 360, 2)
                     cfg.set("main", "volume", vol_set)
 
+    def update_log(cfg, lcks):
+        """Log Knob pressed state"""
+        knob.log_knob(lcks)
 
     bp.processes.append(check_knob)
+    bp.processes.append(update_log)
     return bp.run
-
