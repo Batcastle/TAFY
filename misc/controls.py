@@ -68,7 +68,6 @@ class Knob:
         self._last_btn_state   = False   # raw reading from the previous call
         self._last_btn_time    = 0       # time.ticks_ms() of last accepted click
         self.press_log = {}
-        self.max_age = 4000
         self.last_gesture = 0
 
         # Maximum gain: one LED lights for every detent turned.
@@ -301,20 +300,45 @@ class GestureHandler:
         self.handler_funcs = {}
         self.persistant_storage = {}
         self.config = config
+        self.mode = ""
+        self.last_gesture = 0
+        self.gesture_config = config.get("sen0502", "gesture_modes")
+        self.max_age = 4000
 
     def register_handler(self, gesture_string: str):
         """Register functions to handle gestures"""
-        def decorator(func):
-            self.handler_funcs[gesture_string] = func
-            return func
+        def decorator(func, override=False):
+            def new_func():
+                if not override:
+                    self.last_gesture = time.ticks_ms()
+                    self.mode = gesture_string
+                func()
+            self.handler_funcs[gesture_string] = new_func
+            return new_func
         return decorator
 
-    def dispatch(self, gesture_string: str) -> None:
+    def dispatch(self, gesture_string: str, knob, locks) -> None:
         """Run handler function for a given gesture string"""
-        if gesture_string == "":
-            return
-        self.handler_funcs[gesture_string]()
+        if gesture_string in self.handler_funcs:
+            self.handler_funcs[gesture_string]()
+        if gesture_string in self.gesture_config:
+            self.generic_handler(gesture_string, knob, locks)
 
+
+    def generic_handler(self, gesture_string: str, locks) -> None:
+        """Adjust setting based of gesture string configuration"""
+        mode_settings = self.gesture_config[gesture_string]
+        position = knob.get_knob_position(locks)
+        scaled = (position / 360) * mode_settings["max"]
+        if scaled < mode_settings["min"]:
+            scaled = mode_settings["min"]
+        # Because we did a division, scaled is a float.
+        if mode_settings["type"] == "int":
+            scaled = round(scaled)
+        if mode_settings["type"] == "float":
+            # Round it to something reasonable
+            scaled = round(scaled, 2)
+        config.set(mode_settings["config_file"], mode_settings["settings_key"], scaled)
 
 
 def init(i2c, config, locks):
@@ -334,7 +358,17 @@ def init(i2c, config, locks):
 
     handler = GestureHandler(config)
 
-    @handler.register_handler(".")
+
+    @handler.register_handler("", override=True)
+    def check_knob():
+        """Handle knob position reads"""
+        if handler.mode == ".":
+            return
+        if time.ticks_diff(time.ticks_ms(), handler.last_gesture) > handler.max_age:
+            handler.mode = ""
+
+
+    @handler.register_handler(".", override=True)
     def toggle_mute():
         """Toggle Mute"""
         if "." not in handler.persistant_storage:
@@ -348,11 +382,16 @@ def init(i2c, config, locks):
             knob.enable_knob_lights(locks)
             vol_set = round(handler.persistant_storage["."]["current"] / 360, 2)
             config.set("main", "volume", vol_set)
+            handler.mode = ""
         else:
             handler.persistant_storage["."]["current"] = config.get("main", "volume")
             handler.persistant_storage["."]["muted"] = True
             config.set("main", "volume", 0)
             knob.disable_knob_lights(locks)
+            handler.mode = "."
+        handler.last_gesture = time.ticks_ms()
+
+
 
     @handler.register_handler("..")
     def modify_pwm():
@@ -362,65 +401,14 @@ def init(i2c, config, locks):
                                             }
 
 
-    def check_knob(cfg, lcks):
-        """Check Knob settings and report"""
-        # print(f"Knob Position: {knob.get_knob_position(lcks)}")
-        log = knob.get_log()
-        if not knob.disabled:
-            if log[sorted(log.keys())[-1]]:
-                clicked +=1
-                """
-                # THE ENCLOSED IS A DISABLED CODEPATH UNTIL THE NECESSARY HARDWARE/SOFTWARE IS IN PLACE TO MAKE USE OF IT
-                while click_timeout < 1.5:
-                    time.sleep(0.05)
-                    if knob.get_knob_pressed(lcks):
-                        clicked +=1
-                        no_click_timeout = 0
-                    else:
-                        no_click_timeout += 0.05
-                    click_timeout += 0.05
-                    if clicked >= 3:
-                        clicked = 3
-                        break
-                    if no_click_timeout >= 0.35:
-                        break
-                """
-                if clicked == 1:
-                    cfg.set("main", "volume", 0)
-                    knob.disable_knob_lights(lcks)
-            else:
-                vol_curr = cfg.get("main", "volume")
-                vol_set = round(knob.get_knob_position(lcks) / 360, 2)
-                if vol_curr != vol_set:
-                    cfg.set("main", "volume", vol_set)
-        else:
-            if knob.get_knob_pressed(lcks):
-                clicked +=1
-                """
-                # THE ENCLOSED IS A DISABLED CODEPATH UNTIL THE NECESSARY HARDWARE/SOFTWARE IS IN PLACE TO MAKE USE OF IT
-                while click_timeout < 1.5:
-                    time.sleep(0.05)
-                    if knob.get_knob_pressed(lcks):
-                        clicked +=1
-                        no_click_timeout = 0
-                    else:
-                        no_click_timeout += 0.05
-                    click_timeout += 0.05
-                    if clicked >= 3:
-                        clicked = 3
-                        break
-                    if no_click_timeout >= 0.35:
-                        break
-                """
-                if clicked == 1:
-                    knob.enable_knob_lights(lcks)
-                    vol_set = round(knob.initial_value / 360, 2)
-                    cfg.set("main", "volume", vol_set)
-
     def update_log(cfg, lcks):
         """Log Knob pressed state"""
         knob.log_knob(lcks)
 
-    bp.processes.append(check_knob)
+    def handle_gestures(config, locks):
+        gesture = knob.get_latest_gesture()
+        handler.dispatch(gesture, knob, locks)
+
     bp.processes.append(update_log)
+    bp.processes.append(handle_gestures)
     return bp.run

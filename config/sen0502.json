@@ -1,4 +1,20 @@
 {
     "supported": [84, 85, 86, 87],
-    "max_init_value": 1023
+    "max_init_value": 1023,
+    "gesture_modes": {
+        "": {
+            "config_file": "main",
+            "settings_key": "volume",
+            "max": 1,
+            "min": 0,
+            "type": "float"
+        },
+        "..": {
+            "config_file": "main",
+            "settings_key": "flywheel_pwm_duty",
+            "max": 1,
+            "min": 0,
+            "type": "float"
+        }
+    }
 }
