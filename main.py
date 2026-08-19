@@ -152,7 +152,7 @@ def init(local_config):
 
     background_procs = []
     try:
-        background_procs.append(misc.controls.init(int_i2c, local_config, locks))
+        background_procs.append(misc.controls.init(int_i2c, local_config, locks, disp))
         background_procs.append(misc.battery.init(local_config, output_display))
     except Exception as e:
         print(f"Error setting up MISC: {e}")

@@ -40,6 +40,7 @@ class State:
             "DISPLAY_MODE": 0,
             "WARNING": "",
             "ERROR": "",
+            "INFO": ""
         }
         self.DISPLAY_TYPE = None
 

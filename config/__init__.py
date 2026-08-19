@@ -40,6 +40,11 @@ class Config:
                 self.load(each[:-5])
         self.VERSION = version
 
+    def list_sections(self) -> list:
+        """List all sections"""
+        with self.locks["mem"]:
+            return list(self.config.keys())
+
     def load(self, name: str, overwrite=False) -> None:
         """Load configuration of a specific file from storage"""
         if name not in self.locks:

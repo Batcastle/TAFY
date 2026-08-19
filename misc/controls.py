@@ -69,6 +69,7 @@ class Knob:
         self._last_btn_time    = 0       # time.ticks_ms() of last accepted click
         self.press_log = {}
         self.last_gesture = 0
+        self.max_age = 4000
 
         # Maximum gain: one LED lights for every detent turned.
         # This gives the tightest LED-to-position coupling and makes
@@ -244,7 +245,7 @@ class Knob:
         keys = sorted(self.press_log.keys())
         keys.reverse()
         gesture_timeout = 250
-        press_timeout = 1000
+        press_timeout = 500
         for index, item in enumerate(keys):
             """Iterate over presses"""
             # Skip the last key to avoid an IndexError
@@ -285,15 +286,6 @@ class BackgroundProcess:
             each(config, locks)
 
 
-def determine_press_type(log: dict, max_time_between_presses=100, time_since_interaction=100) -> dict:
-    """Determine how many presses we should operate under"""
-    count = {}
-    iterable = sorted(log.keys())
-    iterable.reverse()
-    for each in iterable:
-        """How the fuck do we do this???"""
-
-
 class GestureHandler:
     def __init__(self, config):
         """Register and handle gestures"""
@@ -305,9 +297,9 @@ class GestureHandler:
         self.gesture_config = config.get("sen0502", "gesture_modes")
         self.max_age = 4000
 
-    def register_handler(self, gesture_string: str):
+    def register_handler(self, gesture_string: str, override=False):
         """Register functions to handle gestures"""
-        def decorator(func, override=False):
+        def decorator(func):
             def new_func():
                 if not override:
                     self.last_gesture = time.ticks_ms()
@@ -322,10 +314,18 @@ class GestureHandler:
         if gesture_string in self.handler_funcs:
             self.handler_funcs[gesture_string]()
         if gesture_string in self.gesture_config:
+            if gesture_string not in self.handler_funcs:
+                self.mode = gesture_string
+                self.last_gesture = time.ticks_ms()
+                # Sync knob to current setting value before reading from it
+                mode_settings = self.gesture_config[gesture_string]
+                current_val = self.config.get(mode_settings["config_file"],
+                                              mode_settings["settings_key"])
+                knob.set_knob_lights_position((current_val / mode_settings["max"]) * 360, locks)
             self.generic_handler(gesture_string, knob, locks)
 
 
-    def generic_handler(self, gesture_string: str, locks) -> None:
+    def generic_handler(self, gesture_string: str, knob, locks) -> None:
         """Adjust setting based of gesture string configuration"""
         mode_settings = self.gesture_config[gesture_string]
         position = knob.get_knob_position(locks)
@@ -338,10 +338,10 @@ class GestureHandler:
         if mode_settings["type"] == "float":
             # Round it to something reasonable
             scaled = round(scaled, 2)
-        config.set(mode_settings["config_file"], mode_settings["settings_key"], scaled)
+        self.config.set(mode_settings["config_file"], mode_settings["settings_key"], scaled)
 
 
-def init(i2c, config, locks):
+def init(i2c, config, locks, disp):
     """Initalize control hardware"""
     bp = BackgroundProcess()
     with locks["i2c_int"]:
@@ -361,12 +361,39 @@ def init(i2c, config, locks):
 
     @handler.register_handler("", override=True)
     def check_knob():
-        """Handle knob position reads"""
-        if handler.mode == ".":
-            return
-        if time.ticks_diff(time.ticks_ms(), handler.last_gesture) > handler.max_age:
-            handler.mode = ""
+        # Determine home state based on mute status
+        muted = handler.persistant_storage.get(".", {}).get("muted", False)
+        home = "." if muted else ""
 
+        # Check timeout for any non-home mode
+        if handler.mode not in ("", "."):
+            if time.ticks_diff(time.ticks_ms(), handler.last_gesture) > handler.max_age:
+                handler.mode = home
+                if muted:
+                    # Ensure lights stay off when returning to muted home
+                    knob.disable_knob_lights(locks)
+                else:
+                    knob.set_knob_lights_position(
+                        config.get("main", "volume") * 360, locks)
+                return
+
+        if handler.mode == ".":
+            # Muted — lights off, ignore knob
+            if not knob.disabled:
+                knob.disable_knob_lights(locks)
+            return
+
+        if handler.mode == "":
+            # Volume mode — read knob
+            vol_curr = config.get("main", "volume")
+            vol_set = round(knob.get_knob_position(locks) / 360, 2)
+            if vol_curr != vol_set:
+                config.set("main", "volume", vol_set)
+            return
+
+        # Config-driven setting mode
+        if handler.mode in handler.gesture_config:
+            handler.generic_handler(handler.mode, knob, locks)
 
     @handler.register_handler(".", override=True)
     def toggle_mute():
@@ -380,7 +407,7 @@ def init(i2c, config, locks):
         if knob.disabled:
             handler.persistant_storage["."]["muted"] = False
             knob.enable_knob_lights(locks)
-            vol_set = round(handler.persistant_storage["."]["current"] / 360, 2)
+            vol_set = handler.persistant_storage["."]["current"]
             config.set("main", "volume", vol_set)
             handler.mode = ""
         else:
@@ -392,13 +419,12 @@ def init(i2c, config, locks):
         handler.last_gesture = time.ticks_ms()
 
 
-
-    @handler.register_handler("..")
-    def modify_pwm():
-        if ".." not in handler.persistant_storage:
-            handler.persistant_storage[".."] = {
-                                                    "default": config.get("main", "flywheel_pwm_duty")
-                                            }
+    @handler.register_handler("___", override=True)
+    def save_to_disk():
+        """Save all settings to disk"""
+        sections = config.list_sections()
+        for each in sections:
+            config.dump(each)
 
 
     def update_log(cfg, lcks):
@@ -412,3 +438,10 @@ def init(i2c, config, locks):
     bp.processes.append(update_log)
     bp.processes.append(handle_gestures)
     return bp.run
+
+
+def update_display(disp, message) -> None:
+    """Helper function to update display"""
+    if disp is not None:
+        with disp.STATE.acquire_lock():
+            pass
