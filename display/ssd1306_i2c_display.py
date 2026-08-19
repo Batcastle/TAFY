@@ -59,6 +59,7 @@ def init(config, i2c_obj, locks, silent=False, split_thread=True):
     global _OLED
     _OLED = _base.init_oled(config, i2c_obj, locks,
                              "ssd130x_i2c", _SSD1306, silent)
+    _OLED.min_message_display_time = config.get("main", "min_message_display_time") * 1000
     return display_main if split_thread else _OLED
 
 

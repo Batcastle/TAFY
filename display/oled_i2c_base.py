@@ -30,6 +30,8 @@ import time
 import framebuf
 from display.global_base import *
 
+MSG = {"UPDATED": 0,
+       "MSG": None}
 
 class _OLEDBase:
     """Hardware abstraction for a 128x64 OLED over I2C."""
@@ -52,6 +54,7 @@ class _OLEDBase:
         # Properties for charge tracking
         self.low_battery_limit = 0
         self.critical_battery_limit = 0
+        self.min_message_display_time = 0
 
     def _send_init(self, seq):
         """Send an init byte sequence as a single I2C command stream."""
@@ -98,6 +101,7 @@ def run_display(locks, oled):
     Reads STATE under the state lock, clears DIRTY while still holding it
     (preventing missed updates), then renders outside the lock.
     """
+    global MSG
     flag = False
 
     with STATE.acquire_lock():
@@ -107,7 +111,7 @@ def run_display(locks, oled):
             bat  = STATE._get("BATTERY")
             bat_display = ""
             if bat is not None:
-                bat_display = str(100 * round(bat, 2))
+                bat_display = str(round(100 * bat))
                 suffix = "%"
                 if bat < oled.low_battery_limit:
                     suffix = suffix + "!"
@@ -116,6 +120,15 @@ def run_display(locks, oled):
                 bat_display = f"{bat_display} {suffix}"
             else:
                 bat_display = "---"
+            msg = ""
+            if STATE._get("INFO") != "":
+                msg = STATE._get('INFO')
+            # WARNING OVERRIDES INFO
+            if STATE._get("WARNING") != "":
+                msg = f"W: {STATE._get('WARNING')}"
+            # ERROR OVERRIDES ALL
+            if STATE._get("ERROR") != "":
+                msg = f"E!: {STATE._get('ERROR')}"
             batt = f"BAT:   {bat_display}"
             STATE._set("DIRTY", False)
             flag = True
@@ -127,6 +140,11 @@ def run_display(locks, oled):
             oled.hline(0, 10, 128)
             oled.text(ammo, 0, 16)
             oled.text(batt, 0, 32)
+            if time.ticks_diff(time.ticks_ms(), MSG["UPDATED"]) > oled.min_message_display_time:
+                if MSG["MSG"] != msg:
+                    oled.text(msg, 0, 48)
+                    MSG["MSG"] = msg
+                    MSG["UPDATED"] = time.ticks_ms()
             oled.show()
 
 

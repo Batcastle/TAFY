@@ -309,7 +309,7 @@ class GestureHandler:
             return new_func
         return decorator
 
-    def dispatch(self, gesture_string: str, knob, locks) -> None:
+    def dispatch(self, gesture_string: str, knob, locks, disp) -> None:
         """Run handler function for a given gesture string"""
         if gesture_string in self.handler_funcs:
             self.handler_funcs[gesture_string]()
@@ -322,10 +322,10 @@ class GestureHandler:
                 current_val = self.config.get(mode_settings["config_file"],
                                               mode_settings["settings_key"])
                 knob.set_knob_lights_position((current_val / mode_settings["max"]) * 360, locks)
-            self.generic_handler(gesture_string, knob, locks)
+            self.generic_handler(gesture_string, knob, locks, disp)
 
 
-    def generic_handler(self, gesture_string: str, knob, locks) -> None:
+    def generic_handler(self, gesture_string: str, knob, locks, disp) -> None:
         """Adjust setting based of gesture string configuration"""
         mode_settings = self.gesture_config[gesture_string]
         position = knob.get_knob_position(locks)
@@ -339,6 +339,8 @@ class GestureHandler:
             # Round it to something reasonable
             scaled = round(scaled, 2)
         self.config.set(mode_settings["config_file"], mode_settings["settings_key"], scaled)
+        message = f"{' '.join(mode_settings['settings_key'].split('_'))}: {scaled}"
+        update_display(disp, message)
 
 
 def init(i2c, config, locks, disp):
@@ -381,6 +383,7 @@ def init(i2c, config, locks, disp):
             # Muted — lights off, ignore knob
             if not knob.disabled:
                 knob.disable_knob_lights(locks)
+            update_display(disp, "MUTED")
             return
 
         if handler.mode == "":
@@ -389,11 +392,12 @@ def init(i2c, config, locks, disp):
             vol_set = round(knob.get_knob_position(locks) / 360, 2)
             if vol_curr != vol_set:
                 config.set("main", "volume", vol_set)
+            update_display(disp, f"Vol: {round(vol_set * 100)}%")
             return
 
         # Config-driven setting mode
         if handler.mode in handler.gesture_config:
-            handler.generic_handler(handler.mode, knob, locks)
+            handler.generic_handler(handler.mode, knob, locks, disp)
 
     @handler.register_handler(".", override=True)
     def toggle_mute():
@@ -425,6 +429,7 @@ def init(i2c, config, locks, disp):
         sections = config.list_sections()
         for each in sections:
             config.dump(each)
+        update_display(disp, "SETTINGS SAVED!")
 
 
     def update_log(cfg, lcks):
@@ -433,7 +438,7 @@ def init(i2c, config, locks, disp):
 
     def handle_gestures(config, locks):
         gesture = knob.get_latest_gesture()
-        handler.dispatch(gesture, knob, locks)
+        handler.dispatch(gesture, knob, locks, disp)
 
     bp.processes.append(update_log)
     bp.processes.append(handle_gestures)
@@ -444,4 +449,5 @@ def update_display(disp, message) -> None:
     """Helper function to update display"""
     if disp is not None:
         with disp.STATE.acquire_lock():
-            pass
+            disp.STATE._set("INFO", message)
+            disp.STATE._set("DIRTY", True)
