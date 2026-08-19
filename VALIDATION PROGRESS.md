@@ -32,7 +32,7 @@ This document is to help others track validation progress for software and hardw
 | SSD1309 Driver | Fully Validated | Recommened display to use with TAFY thanks to better screen real estate and better power efficency.|
 | LCD1602 Driver | Fully Validated | Cannot push writes too often as this is a character device and cannot handle frequent refreshes. As such, this display only refreshes when necessary. |
 | SSD1306 | Written | Driver is assumed working due to similarities with SSD1309. Do not have this display in hand yet to test. |
-| Volume Knob (SEN0502) | Partially Validated | Working at a basic level. Driver will likely see a minor rewrite to be non-blocking and also support double and triple press. Volume and Mute are working though. |
+| Volume Knob (SEN0502) | Written | Driver has been rewriten to be non-blocking and also support double and triple press. Volume and Mute are working though. |
 | Battery State Tracking | Partially Validated | Code was tested using noise from ADC. |
 | Opportunistic Sleep | Designed | This is a late-game feature and has yet to be implemented. |
 | Flywheel + Mechanical Pusher Fire Mechanism Driver | Written | Waiting on Validated Motor Controlboard |
@@ -66,5 +66,5 @@ This document is to help others track validation progress for software and hardw
 ## Mechanical
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Shells | Architected | Currently looking for a CAD designer/engineer. Attempted using AI to design, failed miserably. |
+| Shells | In Progress | Human CAD engineer/designer found. |
 | AEB Gearbox | Not Started | Not entirely sure how to start this yet. |
