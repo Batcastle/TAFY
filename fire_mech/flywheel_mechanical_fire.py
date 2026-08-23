@@ -55,13 +55,13 @@ class FireMechanism(fire_mech.base.FireMechanism):
             self.INTERNAL_CONFIG["MOTOR2_REV_PIN"][0] = pin_out["motor_two_rev_pin"]
 
         if "flywheel_pwm_freq" in self.config.get_section("main"):
-            self.PWM_FREQ = self.config.get("main", "flywheel_pwm_freq")
+            self.PWM_FREQ = self.config.get("main", "fw_pwm_freq")
 
         if "flywheel_motor_channels" in self.config.get_section("main"):
-            self.INTERNAL_CONFIG["MOTOR_CHANNELS"] = self.config.get("main", "flywheel_motor_channels")
+            self.INTERNAL_CONFIG["MOTOR_CHANNELS"] = self.config.get("main", "fw_motor_channels")
 
         if "flywheel_pwm_duty" in self.config.get_section("main"):
-            duty = self.config.get("main", "flywheel_pwm_duty")
+            duty = self.config.get("main", "fw_pwm_duty")
             if duty > 1:
                 duty = 1
             elif duty < 0:
@@ -75,7 +75,7 @@ class FireMechanism(fire_mech.base.FireMechanism):
 
         if "flywheel_rev_pin_normal" in self.config.get_section("main"):
             self.INTERNAL_CONFIG["REV_PIN_NORMAL"] = self.config.get("main",
-                                                                     "flywheel_rev_pin_normal")
+                                                                     "fw_rev_pin_normal")
         if self.INTERNAL_CONFIG["REV_PIN_NORMAL"] == 0:
             normal = Pin.PULL_DOWN
         elif self.INTERNAL_CONFIG["REV_PIN_NORMAL"] == 1:

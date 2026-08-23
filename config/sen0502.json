@@ -4,7 +4,7 @@
     "gesture_modes": {
         "..": {
             "config_file": "main",
-            "settings_key": "flywheel_pwm_duty",
+            "settings_key": "fw_pwm_duty",
             "max": 1,
             "min": 0,
             "type": "float"

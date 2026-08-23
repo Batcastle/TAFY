@@ -123,12 +123,15 @@ def run_display(locks, oled):
             msg = ""
             if STATE._get("INFO") != "":
                 msg = STATE._get('INFO')
+                print(f"INFO: {msg}")
             # WARNING OVERRIDES INFO
             if STATE._get("WARNING") != "":
                 msg = f"W: {STATE._get('WARNING')}"
+                print(f"WARNING: {msg}")
             # ERROR OVERRIDES ALL
             if STATE._get("ERROR") != "":
                 msg = f"E!: {STATE._get('ERROR')}"
+                print(f"ERROR: {msg}")
             batt = f"BAT:   {bat_display}"
             STATE._set("DIRTY", False)
             flag = True
@@ -140,11 +143,10 @@ def run_display(locks, oled):
             oled.hline(0, 10, 128)
             oled.text(ammo, 0, 16)
             oled.text(batt, 0, 32)
-            if time.ticks_diff(time.ticks_ms(), MSG["UPDATED"]) > oled.min_message_display_time:
-                if MSG["MSG"] != msg:
-                    oled.text(msg, 0, 48)
+            if (time.ticks_diff(time.ticks_ms(), MSG["UPDATED"]) > oled.min_message_display_time) or (MSG["MSG"] != msg):
                     MSG["MSG"] = msg
                     MSG["UPDATED"] = time.ticks_ms()
+            oled.text(msg, 0, 48)
             oled.show()
 
 

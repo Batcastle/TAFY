@@ -60,7 +60,7 @@ import config
 import misc
 
 # Global variables
-VERSION = "v0.2.3-alpha2"
+VERSION = "v0.2.4-alpha2"
 
 
 def play_tune(event, local_config, buzzer):
@@ -341,7 +341,7 @@ def main():
 
 
 
-def background_process(funcs: list, local_config: dict, locks: dict) -> None:
+def background_process(funcs: list, local_config: dict, locks: dict, debug=True) -> None:
     """Main background process"""
     count = 0
     for each in funcs:
@@ -352,10 +352,23 @@ def background_process(funcs: list, local_config: dict, locks: dict) -> None:
         return
     # Wait 4 seconds to let the rest of the system start up.
     time.sleep(4)
+    if debug:
+        times = []
+        max_count = 100
+        start = 0
+        end = 0
     while True:
+        if debug:
+            start = time.ticks_ms()
         for each in funcs:
             if each is not None:
                 each(local_config, locks)
+        if debug:
+            end = time.ticks_ms()
+            times.append(round(time.ticks_diff(end, start), 1))
+            if len(times) > 100:
+                del times[0]
+                print(f"Avg background time: {round(sum(times) / 100, 1)} ms")
 
 
 def fire_handler(mech, disp, locks, state):

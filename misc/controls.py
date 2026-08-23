@@ -61,15 +61,16 @@ class Knob:
         i2c           : MicroPython I2C object
         addr          : I2C address (default 0x54, both DIP switches off)
         """
-        self._addr              = addr
-        self.i2c               = i2c
-        self.disabled          = False
-        self.initial_value     = initial_value
-        self._last_btn_state   = False   # raw reading from the previous call
-        self._last_btn_time    = 0       # time.ticks_ms() of last accepted click
-        self.press_log = {}
-        self.last_gesture = 0
-        self.max_age = 4000
+        self._addr: int               = addr
+        self.i2c                      = i2c
+        self.disabled: bool           = False
+        self.initial_value: int       = initial_value
+        self._last_btn_state: bool    = False   # raw reading from the previous call
+        self._last_btn_time: int      = 0       # time.ticks_ms() of last accepted click
+        self.press_log: dict          = []
+        self.last_gesture: int        = 0
+        self.last_gesture_cutoff: int = 0
+        self.max_age: int             = 10000
 
         # Maximum gain: one LED lights for every detent turned.
         # This gives the tightest LED-to-position coupling and makes
@@ -143,7 +144,6 @@ class Knob:
             current = bool(data[0] & 0x01)
             if current:
                 self.i2c.writeto_mem(self._addr, _REG_BUTTON_STATUS, bytes([0]))
-
         fired = False
         if current and not self._last_btn_state:
             now = time.ticks_ms()
@@ -220,20 +220,9 @@ class Knob:
 
     def log_knob(self, locks) -> None:
         """Keep an eye on the SEN0502 and log whether it's pressed or not."""
-        pressed = self.get_knob_pressed(locks)
-        if self.press_log == {}:
-            self.press_log[time.ticks_ms()] = pressed
-            return
-        keys = sorted(self.press_log.keys())
-        latest = keys[-1]
-        if self.press_log[latest] != pressed:
-            self.press_log[time.ticks_ms()] = pressed
-        to_del = []
-        for each in self.press_log.keys():
-            if time.ticks_diff(time.ticks_ms(), each) > self.max_age:
-                to_del.append(each)
-        for each in to_del:
-            del self.press_log[each]
+        if self.get_knob_pressed(locks):
+            self.press_log.append(time.ticks_ms())
+        self.press_log = [t for t in self.press_log if time.ticks_diff(time.ticks_ms(), t) < self.max_age]
 
     def get_log(self) -> dict:
         """Provide Press log"""
@@ -241,39 +230,35 @@ class Knob:
 
     def get_latest_gesture(self) -> str:
         """Get latest gesture as a string of periods and underscores. Periods are for short presses. underscores are for long."""
+        # print(self.press_log)
         gesture = ""
-        keys = sorted(self.press_log.keys())
+        keys = sorted(self.press_log)
         keys.reverse()
-        gesture_timeout = 250
-        press_timeout = 500
+        gesture_timeout = 475
         for index, item in enumerate(keys):
             """Iterate over presses"""
             # Skip the last key to avoid an IndexError
-            if index == (len(keys) - 1):
-                break
+            if len(keys) > 1:
+                if index == (len(keys) - 1):
+                    break
             if index == 0:
-                if self.press_log[item]:
-                    # Button is currently pressed. We don't know if it's short or long press so exit and wait and see
-                    return ""
+                print(time.ticks_diff(time.ticks_ms(), item))
                 if time.ticks_diff(time.ticks_ms(), item) < gesture_timeout:
                     # Give the human an opportunity to continue the gesture
                     return ""
-            if self.press_log[item]:
-                # When button was pressed
-                if time.ticks_diff(item, keys[index + 1]) > gesture_timeout:
-                    break
+            if len(keys) == 1:
+                gesture = "."
+                break
+            if time.ticks_diff(item, keys[index + 1]) < gesture_timeout:
+                gesture += "."
             else:
-                # Button was released
-                if time.ticks_diff(item, keys[index + 1]) >= press_timeout:
-                    gesture += "_"
-                else:
-                    gesture += "."
+                break
         if gesture == "":
             return ""
+        if len(keys) > 1:
+            gesture += "."
         self.last_gesture = time.ticks_ms()
-        gesture = list(gesture)
-        gesture.reverse()
-        gesture = "".join(gesture)
+        self.last_gesture_cutoff = item
         return gesture
 
 
@@ -363,7 +348,8 @@ def init(i2c, config, locks, disp):
 
     @handler.register_handler("", override=True)
     def check_knob():
-        # Determine home state based on mute status
+        # Determine home state based on mute
+        print(handler.mode)
         muted = handler.persistant_storage.get(".", {}).get("muted", False)
         home = "." if muted else ""
 
@@ -383,7 +369,7 @@ def init(i2c, config, locks, disp):
             # Muted — lights off, ignore knob
             if not knob.disabled:
                 knob.disable_knob_lights(locks)
-            update_display(disp, "MUTED")
+                update_display(disp, "MUTED")
             return
 
         if handler.mode == "":
@@ -392,7 +378,7 @@ def init(i2c, config, locks, disp):
             vol_set = round(knob.get_knob_position(locks) / 360, 2)
             if vol_curr != vol_set:
                 config.set("main", "volume", vol_set)
-            update_display(disp, f"Vol: {round(vol_set * 100)}%")
+                update_display(disp, f"Vol: {round(vol_set * 100)}%")
             return
 
         # Config-driven setting mode
@@ -414,16 +400,18 @@ def init(i2c, config, locks, disp):
             vol_set = handler.persistant_storage["."]["current"]
             config.set("main", "volume", vol_set)
             handler.mode = ""
+            update_display(disp, f"Vol: {round(vol_set * 100)}%")
         else:
             handler.persistant_storage["."]["current"] = config.get("main", "volume")
             handler.persistant_storage["."]["muted"] = True
             config.set("main", "volume", 0)
             knob.disable_knob_lights(locks)
             handler.mode = "."
+            update_display(disp, "MUTED")
         handler.last_gesture = time.ticks_ms()
 
 
-    @handler.register_handler("___", override=True)
+    @handler.register_handler(".....", override=True)
     def save_to_disk():
         """Save all settings to disk"""
         sections = config.list_sections()
@@ -439,9 +427,20 @@ def init(i2c, config, locks, disp):
     def handle_gestures(config, locks):
         gesture = knob.get_latest_gesture()
         handler.dispatch(gesture, knob, locks, disp)
+        if gesture != "":
+            to_del = []
+            for each in knob.press_log:
+                if time.ticks_diff(each, knob.last_gesture_cutoff) >= 0:
+                    to_del.append(knob.press_log.index(each))
+            for each in to_del:
+                try:
+                    del knob.press_log[each]
+                except IndexError:
+                    print(f"Tried to del index '{each}' and failed")
 
     bp.processes.append(update_log)
     bp.processes.append(handle_gestures)
+    update_display(disp, f"Vol: {round(config.get('main', 'volume') * 100)}%")
     return bp.run
 
 
@@ -451,3 +450,4 @@ def update_display(disp, message) -> None:
         with disp.STATE.acquire_lock():
             disp.STATE._set("INFO", message)
             disp.STATE._set("DIRTY", True)
+            print(f"update_display called: {message}, DIRTY={disp.STATE._get('DIRTY')}")
