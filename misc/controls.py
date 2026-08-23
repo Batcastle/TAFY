@@ -432,6 +432,8 @@ def init(i2c, config, locks, disp):
             for each in knob.press_log:
                 if time.ticks_diff(each, knob.last_gesture_cutoff) >= 0:
                     to_del.append(knob.press_log.index(each))
+            to_del = sorted(to_del)
+            to_del.reverse()
             for each in to_del:
                 try:
                     del knob.press_log[each]
